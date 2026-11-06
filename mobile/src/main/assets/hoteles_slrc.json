@@ -1,0 +1,179 @@
+{
+  "version": 0.6,
+  "generator": "Overpass API 0.7.62.11 87bfad18",
+  "osm3s": {
+    "timestamp_osm_base": "2026-11-06T21:50:44Z",
+    "copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL."
+  },
+  "elements": [
+
+{
+  "type": "node",
+  "id": 1340844763,
+  "lat": 32.4792809,
+  "lon": -114.7699436,
+  "tags": {
+    "addr:city": "San Luis Río Colorado",
+    "name": "HOTEL SAN ANGEL",
+    "tourism": "hotel",
+    "wheelchair": "limited"
+  }
+},
+{
+  "type": "node",
+  "id": 2419377514,
+  "lat": 32.4630580,
+  "lon": -114.7610077,
+  "tags": {
+    "addr:city": "San Luis Rio Colorado",
+    "addr:street": "Av. Libertad",
+    "tourism": "motel"
+  }
+},
+{
+  "type": "node",
+  "id": 2463978139,
+  "lat": 32.4844702,
+  "lon": -114.7813379,
+  "tags": {
+    "addr:city": "San Luis Río Colorado",
+    "addr:street": "Avenida Internacional 1 y 2",
+    "name": "Hotel Internacional",
+    "tourism": "hotel"
+  }
+},
+{
+  "type": "node",
+  "id": 2463981313,
+  "lat": 32.4830629,
+  "lon": -114.7808605,
+  "tags": {
+    "addr:city": "San Luis Río Colorado",
+    "addr:state": "AZ",
+    "addr:street": "Avenida Obregón 2 y 3",
+    "name": "Hotel San Antonio",
+    "tourism": "hotel"
+  }
+},
+{
+  "type": "node",
+  "id": 2532875271,
+  "lat": 32.4759573,
+  "lon": -114.7861558,
+  "tags": {
+    "addr:city": "San Luis Río Colorado",
+    "addr:street": "Avenida Revolución",
+    "name": "Motel Del Valle",
+    "tourism": "motel"
+  }
+},
+{
+  "type": "node",
+  "id": 2612809126,
+  "lat": 32.4813600,
+  "lon": -114.7749033,
+  "tags": {
+    "addr:city": "San Luis Río Colorado",
+    "addr:street": "Avenida Obregón y 7",
+    "name": "Motel California",
+    "tourism": "motel"
+  }
+},
+{
+  "type": "node",
+  "id": 7706058116,
+  "lat": 32.4761753,
+  "lon": -114.7765312,
+  "tags": {
+    "addr:city": "San Luis Rio Colorado",
+    "addr:housenumber": "912",
+    "addr:postcode": "83449",
+    "addr:street": "Avenida Zaragoza",
+    "guest_house": "albergue",
+    "name": "La Divina Providencia.",
+    "operator": "albergue",
+    "tourism": "hostel"
+  }
+},
+{
+  "type": "node",
+  "id": 8082637167,
+  "lat": 32.4761014,
+  "lon": -114.7596538,
+  "tags": {
+    "addr:city": "San Luis Rio Colorado",
+    "addr:street": "Avenida Francisco Ignacio Madero",
+    "brand": "Araiza",
+    "internet_access": "yes",
+    "internet_access:fee": "no",
+    "name": "Araiza",
+    "tourism": "hotel"
+  }
+},
+{
+  "type": "node",
+  "id": 12070411292,
+  "lat": 32.4801914,
+  "lon": -114.7693027,
+  "tags": {
+    "addr:city": "San Luis Río Colorado",
+    "addr:housenumber": "1111",
+    "addr:postcode": "83449",
+    "addr:state": "SON",
+    "addr:street": "Avenida Álvaro Obregón",
+    "internet_access": "yes",
+    "internet_access:fee": "no",
+    "name": "653 Hotel",
+    "phone": "+52653 160 1385",
+    "tourism": "hotel",
+    "website": "https://653hotel.com"
+  }
+},
+{
+  "type": "way",
+  "id": 242090915,
+  "center": {
+    "lat": 32.4761003,
+    "lon": -114.7555328
+  },
+  "tags": {
+    "addr:city": "San Luis Río Colorado",
+    "addr:country": "US",
+    "addr:state": "AZ",
+    "addr:street": "Avenida Obregón 21 y 22",
+    "building": "yes",
+    "name": "Motel Frontera",
+    "tourism": "motel"
+  }
+},
+{
+  "type": "way",
+  "id": 1360677237,
+  "center": {
+    "lat": 32.6075448,
+    "lon": -114.6510509
+  },
+  "tags": {
+    "building": "yes",
+    "name": "Cocopah Casino & Resort",
+    "tourism": "hotel"
+  }
+},
+{
+  "type": "way",
+  "id": 1453796352,
+  "center": {
+    "lat": 32.4896774,
+    "lon": -114.7817520
+  },
+  "tags": {
+    "addr:city": "San Luis",
+    "addr:state": "AZ",
+    "building": "yes",
+    "name": "Embajador Motel",
+    "tourism": "motel"
+  }
+}
+
+  ]
+}

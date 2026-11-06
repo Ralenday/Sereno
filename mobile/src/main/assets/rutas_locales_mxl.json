@@ -1,0 +1,15 @@
+{
+  "_formato": "Rutas capturadas a mano (no existen en OpenStreetMap ni como GTFS abierto). Cada ruta en UN sentido; paradas en orden de recorrido. modo: BUS | MICRO | TROLEBUS | METROBUS. Ejemplo de ruta abajo con 'activa': false (se ignora).",
+  "rutas": [
+    {
+      "activa": false,
+      "ref": "EJEMPLO",
+      "nombre": "Ruta de ejemplo (centro -> norte)",
+      "modo": "BUS",
+      "paradas": [
+        {"nombre": "Parada 1", "lat": 0.0, "lon": 0.0},
+        {"nombre": "Parada 2", "lat": 0.0, "lon": 0.0}
+      ]
+    }
+  ]
+}

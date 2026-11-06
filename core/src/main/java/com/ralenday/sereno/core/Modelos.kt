@@ -1,0 +1,221 @@
+package com.ralenday.sereno.core
+
+import org.json.JSONArray
+import org.json.JSONObject
+
+/*
+ * Todo lo que viaja entre teléfono y reloj. El teléfono hace el trabajo pesado (internet, GPS,
+ * cálculos) y le manda al reloj solo un [EstadoReloj] ya resumido; el reloj solo devuelve [Comando]s.
+ */
+
+data class Punto(val lat: Double, val lon: Double)
+
+enum class Giro { SALIDA, RECTO, LIGERA_IZQ, IZQ, FUERTE_IZQ, LIGERA_DER, DER, FUERTE_DER, VUELTA_U, ROTONDA, LLEGADA }
+
+enum class Modo(val etiqueta: String) {
+    CAMINAR("Caminar"), METRO("Metro"), TREN_LIGERO("Tren ligero"), METROBUS("Metrobús"),
+    TROLEBUS("Trolebús"), CABLEBUS("Cablebús"), BUS("Camión"), MICRO("Micro / combi"),
+    TREN("Tren"), TAXI("Taxi / app"),
+}
+
+enum class Orden { DISTANCIA, PRECIO, VALORACION }
+
+data class Hotel(
+    val id: String,
+    val nombre: String,
+    val tipo: String,
+    val punto: Punto,
+    val distanciaM: Int,
+    val precioEstimado: Int,
+    /** Estrellas de OSM (0 = sin dato). Se usa como "valoración" porque no hay reseñas abiertas. */
+    val estrellas: Int,
+    val telefono: String? = null,
+    val web: String? = null,
+    val direccion: String? = null,
+)
+
+/** Un giro de la navegación a pie. */
+data class PasoNav(
+    val giro: Giro,
+    val calle: String,
+    val punto: Punto,
+    /** Metros desde este giro hasta el siguiente. */
+    val distanciaM: Int,
+)
+
+/** Un tramo de un trayecto: caminar, subir al metro, etc. */
+data class Tramo(
+    val modo: Modo,
+    val linea: String,
+    val desde: String,
+    val hasta: String,
+    val minutos: Int,
+    val costo: Double,
+    val paradas: Int = 0,
+    val desdePunto: Punto? = null,
+    val hastaPunto: Punto? = null,
+)
+
+data class Ruta(
+    val titulo: String,
+    val tramos: List<Tramo>,
+    val minutos: Int,
+    val costo: Double,
+    val transbordos: Int,
+    /** 0..100: qué tan iluminada / transitada es la parte a pie (OSM lit=yes + tipo de calle). */
+    val puntajeNoche: Int = -1,
+    val estimada: Boolean = true,
+)
+
+data class NavActual(
+    val destino: String,
+    val giro: Giro,
+    val calle: String,
+    val metrosAlGiro: Int,
+    /** Hacia dónde apuntar la flecha, en grados respecto al rumbo actual (0 = de frente). */
+    val flechaGrados: Int,
+    val metrosRestantes: Int,
+    val minutosRestantes: Int,
+    /** Instrucción del tramo de transporte actual, p. ej. "Sube a Metro L2 dir. Cuatro Caminos". */
+    val indicacion: String? = null,
+)
+
+enum class TipoAlerta { RIESGO, QUIETO, DESVIO, INFO, PANICO_ENVIADO }
+
+data class Alerta(val id: Long, val tipo: TipoAlerta, val texto: String, val pideRespuesta: Boolean = false)
+
+data class EstadoReloj(
+    val ciudad: String = "",
+    val buscando: Boolean = false,
+    val hoteles: List<Hotel> = emptyList(),
+    val orden: Orden = Orden.DISTANCIA,
+    val hotelElegido: String? = null,
+    val rutas: List<Ruta> = emptyList(),
+    val nav: NavActual? = null,
+    val alerta: Alerta? = null,
+    val soloVibracion: Boolean = false,
+    val compartiendo: Boolean = false,
+    val mensaje: String? = null,
+    val generado: Long = System.currentTimeMillis(),
+) {
+    fun aBytes(): ByteArray = aJson().toString().toByteArray()
+
+    fun aJson(): JSONObject = JSONObject().apply {
+        put("v", 1)
+        put("ciudad", ciudad)
+        put("buscando", buscando)
+        put("hoteles", JSONArray(hoteles.map { it.aJson() }))
+        put("orden", orden.name)
+        put("hotelElegido", hotelElegido ?: JSONObject.NULL)
+        put("rutas", JSONArray(rutas.map { it.aJson() }))
+        put("nav", nav?.aJson() ?: JSONObject.NULL)
+        put("alerta", alerta?.aJson() ?: JSONObject.NULL)
+        put("soloVibracion", soloVibracion)
+        put("compartiendo", compartiendo)
+        put("mensaje", mensaje ?: JSONObject.NULL)
+        put("generado", generado)
+    }
+
+    companion object {
+        fun deBytes(bytes: ByteArray) = deJson(JSONObject(String(bytes)))
+
+        fun deJson(j: JSONObject) = EstadoReloj(
+            ciudad = j.optString("ciudad"),
+            buscando = j.optBoolean("buscando"),
+            hoteles = j.getJSONArray("hoteles").objetos().map { it.aHotel() },
+            orden = Orden.valueOf(j.optString("orden", Orden.DISTANCIA.name)),
+            hotelElegido = j.texto("hotelElegido"),
+            rutas = j.getJSONArray("rutas").objetos().map { it.aRuta() },
+            nav = j.optJSONObject("nav")?.aNav(),
+            alerta = j.optJSONObject("alerta")?.aAlerta(),
+            soloVibracion = j.optBoolean("soloVibracion"),
+            compartiendo = j.optBoolean("compartiendo"),
+            mensaje = j.texto("mensaje"),
+            generado = j.optLong("generado"),
+        )
+    }
+}
+
+enum class TipoComando {
+    PEDIR_ESTADO, BUSCAR_HOTELES, ORDENAR, ELEGIR_HOTEL, ELEGIR_RUTA, INICIAR_NAV, DETENER_NAV,
+    RECALCULAR, PANICO, ESTOY_BIEN, SOLO_VIBRACION, COMPARTIR_UBICACION,
+}
+
+data class Comando(val tipo: TipoComando, val arg: String? = null) {
+    fun aBytes(): ByteArray = JSONObject().put("tipo", tipo.name).put("arg", arg ?: JSONObject.NULL).toString().toByteArray()
+
+    companion object {
+        fun deBytes(bytes: ByteArray): Comando {
+            val j = JSONObject(String(bytes))
+            return Comando(TipoComando.valueOf(j.getString("tipo")), j.texto("arg"))
+        }
+    }
+}
+
+// ---------- JSON ----------
+
+fun JSONArray.objetos(): List<JSONObject> = (0 until length()).map { getJSONObject(it) }
+
+fun JSONObject.texto(clave: String): String? = if (!has(clave) || isNull(clave)) null else optString(clave)
+
+private fun Punto.aJson() = JSONObject().put("lat", lat).put("lon", lon)
+private fun JSONObject.aPunto() = Punto(getDouble("lat"), getDouble("lon"))
+private fun JSONObject.punto(clave: String) = optJSONObject(clave)?.aPunto()
+
+fun Hotel.aJson(): JSONObject = JSONObject().apply {
+    put("id", id); put("nombre", nombre); put("tipo", tipo); put("p", punto.aJson())
+    put("dist", distanciaM); put("precio", precioEstimado); put("estrellas", estrellas)
+    put("tel", telefono ?: JSONObject.NULL); put("web", web ?: JSONObject.NULL)
+    put("dir", direccion ?: JSONObject.NULL)
+}
+
+fun JSONObject.aHotel() = Hotel(
+    id = getString("id"), nombre = getString("nombre"), tipo = getString("tipo"),
+    punto = getJSONObject("p").aPunto(), distanciaM = getInt("dist"),
+    precioEstimado = getInt("precio"), estrellas = optInt("estrellas"),
+    telefono = texto("tel"), web = texto("web"), direccion = texto("dir"),
+)
+
+private fun Tramo.aJson() = JSONObject().apply {
+    put("modo", modo.name); put("linea", linea); put("desde", desde); put("hasta", hasta)
+    put("min", minutos); put("costo", costo); put("paradas", paradas)
+    put("dp", desdePunto?.aJson() ?: JSONObject.NULL); put("hp", hastaPunto?.aJson() ?: JSONObject.NULL)
+}
+
+private fun JSONObject.aTramo() = Tramo(
+    modo = Modo.valueOf(getString("modo")), linea = getString("linea"), desde = getString("desde"),
+    hasta = getString("hasta"), minutos = getInt("min"), costo = getDouble("costo"),
+    paradas = optInt("paradas"), desdePunto = punto("dp"), hastaPunto = punto("hp"),
+)
+
+fun Ruta.aJson(): JSONObject = JSONObject().apply {
+    put("titulo", titulo); put("tramos", JSONArray(tramos.map { it.aJson() }))
+    put("min", minutos); put("costo", costo); put("transbordos", transbordos)
+    put("noche", puntajeNoche); put("estimada", estimada)
+}
+
+fun JSONObject.aRuta() = Ruta(
+    titulo = getString("titulo"), tramos = getJSONArray("tramos").objetos().map { it.aTramo() },
+    minutos = getInt("min"), costo = getDouble("costo"), transbordos = getInt("transbordos"),
+    puntajeNoche = optInt("noche", -1), estimada = optBoolean("estimada", true),
+)
+
+private fun NavActual.aJson() = JSONObject().apply {
+    put("destino", destino); put("giro", giro.name); put("calle", calle); put("mGiro", metrosAlGiro)
+    put("flecha", flechaGrados); put("mRest", metrosRestantes); put("minRest", minutosRestantes)
+    put("ind", indicacion ?: JSONObject.NULL)
+}
+
+private fun JSONObject.aNav() = NavActual(
+    destino = getString("destino"), giro = Giro.valueOf(getString("giro")), calle = getString("calle"),
+    metrosAlGiro = getInt("mGiro"), flechaGrados = getInt("flecha"), metrosRestantes = getInt("mRest"),
+    minutosRestantes = getInt("minRest"), indicacion = texto("ind"),
+)
+
+private fun Alerta.aJson() = JSONObject().put("id", id).put("tipo", tipo.name).put("texto", texto).put("resp", pideRespuesta)
+private fun JSONObject.aAlerta() = Alerta(getLong("id"), TipoAlerta.valueOf(getString("tipo")), getString("texto"), optBoolean("resp"))
+
+fun PasoNav.aJson(): JSONObject = JSONObject().put("giro", giro.name).put("calle", calle).put("p", punto.aJson()).put("d", distanciaM)
+fun JSONObject.aPaso() = PasoNav(Giro.valueOf(getString("giro")), getString("calle"), getJSONObject("p").aPunto(), getInt("d"))
+fun Punto.json(): JSONObject = aJson()
+fun JSONObject.comoPunto(): Punto = aPunto()
