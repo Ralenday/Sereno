@@ -58,12 +58,14 @@ class Transporte(private val ciudad: Ciudad) {
 
         // 3) Taxi / app (siempre como respaldo)
         val metrosAuto = directo * 1.35
+        val costoTaxi = Ciudades.costoTaxi(ciudad, metrosAuto, origen, destino).roundToInt().toDouble()
+        val notaTaxi = if (ciudad.taxiPorZona) "según zona, desde $${ciudad.taxiBanderazo.roundToInt()}" else ""
         rutas += Ruta(
             "Taxi o app",
-            listOf(Tramo(Modo.TAXI, "", "Tu ubicación", "Destino", ceil(metrosAuto / 1000 / VEL_TAXI_KMH * 60).toInt() + 5,
-                Ciudades.costoTaxi(ciudad, metrosAuto), desdePunto = origen, hastaPunto = destino)),
+            listOf(Tramo(Modo.TAXI, notaTaxi, "Tu ubicación", "Destino", ceil(metrosAuto / 1000 / VEL_TAXI_KMH * 60).toInt() + 5,
+                costoTaxi, desdePunto = origen, hastaPunto = destino, trazo = listOf(origen, destino))),
             ceil(metrosAuto / 1000 / VEL_TAXI_KMH * 60).toInt() + 5,
-            Ciudades.costoTaxi(ciudad, metrosAuto).roundToInt().toDouble(), 0,
+            costoTaxi, 0,
         )
 
         // Quedarse con la mejor opción por combinación de líneas, ordenadas por tiempo
@@ -96,7 +98,8 @@ class Transporte(private val ciudad: Ciudad) {
             val gratis = modoAnterior == l.modo && redAnterior == l.red && l.modo in setOf(Modo.METRO, Modo.METROBUS)
             val costo = if (gratis) 0.0 else ciudad.tarifas[l.modo] ?: ciudad.tarifas[Modo.BUS] ?: 0.0
             val etiqueta = listOf(l.modo.etiqueta, l.ref.ifBlank { null }).filterNotNull().joinToString(" ")
-            tramos += Tramo(l.modo, etiqueta, sube.nombre, baja.nombre, min, costo, j - i, sube.punto, baja.punto)
+            val puntosTramo = Geo.simplificar(l.paradas.subList(i, j + 1).map { it.punto }, 15.0)
+            tramos += Tramo(l.modo, etiqueta, sube.nombre, baja.nombre, min, costo, j - i, sube.punto, baja.punto, puntosTramo)
             ultimoPunto = baja.punto
             ultimoNombre = baja.nombre
             modoAnterior = l.modo
@@ -114,7 +117,7 @@ class Transporte(private val ciudad: Ciudad) {
     }
 
     private fun tramoCaminar(desde: String, hasta: String, a: Punto, b: Punto) =
-        Tramo(Modo.CAMINAR, "", desde, hasta, minCaminar(Geo.distancia(a, b)), 0.0, desdePunto = a, hastaPunto = b)
+        Tramo(Modo.CAMINAR, "", desde, hasta, minCaminar(Geo.distancia(a, b)), 0.0, desdePunto = a, hastaPunto = b, trazo = listOf(a, b))
 
     companion object {
         const val MAX_CAMINAR_A_PARADA = 900.0

@@ -54,6 +54,8 @@ data class Tramo(
     val paradas: Int = 0,
     val desdePunto: Punto? = null,
     val hastaPunto: Punto? = null,
+    /** Recorrido del tramo para dibujarlo en el mapa (puede venir vacío). */
+    val trazo: List<Punto> = emptyList(),
 )
 
 data class Ruta(
@@ -62,8 +64,6 @@ data class Ruta(
     val minutos: Int,
     val costo: Double,
     val transbordos: Int,
-    /** 0..100: qué tan iluminada / transitada es la parte a pie (OSM lit=yes + tipo de calle). */
-    val puntajeNoche: Int = -1,
     val estimada: Boolean = true,
 )
 
@@ -84,6 +84,16 @@ enum class TipoAlerta { RIESGO, QUIETO, DESVIO, INFO, PANICO_ENVIADO }
 
 data class Alerta(val id: Long, val tipo: TipoAlerta, val texto: String, val pideRespuesta: Boolean = false)
 
+/** Un trazo del mapa del reloj con el modo (para el color). */
+data class TrazoMapa(val modo: Modo, val puntos: List<Punto>)
+
+data class MapaReloj(
+    val yo: Punto?,
+    val destino: Punto?,
+    val destinoNombre: String = "",
+    val trazos: List<TrazoMapa> = emptyList(),
+)
+
 data class EstadoReloj(
     val ciudad: String = "",
     val buscando: Boolean = false,
@@ -94,8 +104,9 @@ data class EstadoReloj(
     val nav: NavActual? = null,
     val alerta: Alerta? = null,
     val soloVibracion: Boolean = false,
-    val compartiendo: Boolean = false,
     val mensaje: String? = null,
+    /** Lo que dibuja el mapa del reloj: tu posición, el destino y el trazo simplificado de la ruta activa. */
+    val mapa: MapaReloj? = null,
     val generado: Long = System.currentTimeMillis(),
 ) {
     fun aBytes(): ByteArray = aJson().toString().toByteArray()
@@ -111,8 +122,8 @@ data class EstadoReloj(
         put("nav", nav?.aJson() ?: JSONObject.NULL)
         put("alerta", alerta?.aJson() ?: JSONObject.NULL)
         put("soloVibracion", soloVibracion)
-        put("compartiendo", compartiendo)
         put("mensaje", mensaje ?: JSONObject.NULL)
+        put("mapa", mapa?.aJson() ?: JSONObject.NULL)
         put("generado", generado)
     }
 
@@ -129,8 +140,8 @@ data class EstadoReloj(
             nav = j.optJSONObject("nav")?.aNav(),
             alerta = j.optJSONObject("alerta")?.aAlerta(),
             soloVibracion = j.optBoolean("soloVibracion"),
-            compartiendo = j.optBoolean("compartiendo"),
             mensaje = j.texto("mensaje"),
+            mapa = j.optJSONObject("mapa")?.aMapa(),
             generado = j.optLong("generado"),
         )
     }
@@ -138,7 +149,7 @@ data class EstadoReloj(
 
 enum class TipoComando {
     PEDIR_ESTADO, BUSCAR_HOTELES, ORDENAR, ELEGIR_HOTEL, ELEGIR_RUTA, INICIAR_NAV, DETENER_NAV,
-    RECALCULAR, PANICO, ESTOY_BIEN, SOLO_VIBRACION, COMPARTIR_UBICACION,
+    RECALCULAR, PANICO, ESTOY_BIEN, SOLO_VIBRACION,
 }
 
 data class Comando(val tipo: TipoComando, val arg: String? = null) {
@@ -180,24 +191,26 @@ private fun Tramo.aJson() = JSONObject().apply {
     put("modo", modo.name); put("linea", linea); put("desde", desde); put("hasta", hasta)
     put("min", minutos); put("costo", costo); put("paradas", paradas)
     put("dp", desdePunto?.aJson() ?: JSONObject.NULL); put("hp", hastaPunto?.aJson() ?: JSONObject.NULL)
+    if (trazo.size >= 2) put("tz", Geo.codificarPolilinea(trazo))
 }
 
 private fun JSONObject.aTramo() = Tramo(
     modo = Modo.valueOf(getString("modo")), linea = getString("linea"), desde = getString("desde"),
     hasta = getString("hasta"), minutos = getInt("min"), costo = getDouble("costo"),
     paradas = optInt("paradas"), desdePunto = punto("dp"), hastaPunto = punto("hp"),
+    trazo = texto("tz")?.let { Geo.decodificarPolilinea(it) } ?: emptyList(),
 )
 
 fun Ruta.aJson(): JSONObject = JSONObject().apply {
     put("titulo", titulo); put("tramos", JSONArray(tramos.map { it.aJson() }))
     put("min", minutos); put("costo", costo); put("transbordos", transbordos)
-    put("noche", puntajeNoche); put("estimada", estimada)
+    put("estimada", estimada)
 }
 
 fun JSONObject.aRuta() = Ruta(
     titulo = getString("titulo"), tramos = getJSONArray("tramos").objetos().map { it.aTramo() },
     minutos = getInt("min"), costo = getDouble("costo"), transbordos = getInt("transbordos"),
-    puntajeNoche = optInt("noche", -1), estimada = optBoolean("estimada", true),
+    estimada = optBoolean("estimada", true),
 )
 
 private fun NavActual.aJson() = JSONObject().apply {
@@ -219,3 +232,14 @@ fun PasoNav.aJson(): JSONObject = JSONObject().put("giro", giro.name).put("calle
 fun JSONObject.aPaso() = PasoNav(Giro.valueOf(getString("giro")), getString("calle"), getJSONObject("p").aPunto(), getInt("d"))
 fun Punto.json(): JSONObject = aJson()
 fun JSONObject.comoPunto(): Punto = aPunto()
+
+private fun MapaReloj.aJson() = JSONObject().apply {
+    put("yo", yo?.aJson() ?: JSONObject.NULL); put("dest", destino?.aJson() ?: JSONObject.NULL)
+    put("destN", destinoNombre)
+    put("tr", JSONArray(trazos.map { JSONObject().put("m", it.modo.name).put("p", Geo.codificarPolilinea(it.puntos)) }))
+}
+
+private fun JSONObject.aMapa() = MapaReloj(
+    yo = punto("yo"), destino = punto("dest"), destinoNombre = optString("destN"),
+    trazos = optJSONArray("tr")?.objetos()?.map { TrazoMapa(Modo.valueOf(it.getString("m")), Geo.decodificarPolilinea(it.getString("p"))) } ?: emptyList(),
+)

@@ -75,5 +75,38 @@ object Geo {
         return puntos
     }
 
+    /** Codifica puntos como polilínea de Google/OSRM (precisión 5): compacta para enviar al reloj. */
+    fun codificarPolilinea(puntos: List<Punto>): String {
+        val sb = StringBuilder()
+        var pLat = 0; var pLon = 0
+        for (p in puntos) {
+            val lat = Math.round(p.lat * 1e5).toInt(); val lon = Math.round(p.lon * 1e5).toInt()
+            for (d in intArrayOf(lat - pLat, lon - pLon)) {
+                var v = if (d < 0) (d shl 1).inv() else d shl 1
+                while (v >= 0x20) { sb.append(((0x20 or (v and 0x1f)) + 63).toChar()); v = v shr 5 }
+                sb.append((v + 63).toChar())
+            }
+            pLat = lat; pLon = lon
+        }
+        return sb.toString()
+    }
+
+    /** Simplifica una polilínea (Douglas-Peucker) con tolerancia en metros. */
+    fun simplificar(puntos: List<Punto>, toleranciaM: Double): List<Punto> {
+        if (puntos.size < 3) return puntos
+        val guardar = BooleanArray(puntos.size); guardar[0] = true; guardar[puntos.size - 1] = true
+        val pila = ArrayDeque<Pair<Int, Int>>(); pila.addLast(0 to puntos.size - 1)
+        while (pila.isNotEmpty()) {
+            val (a, b) = pila.removeLast()
+            var maxD = 0.0; var idx = -1
+            for (i in a + 1 until b) {
+                val d = distanciaALinea(puntos[i], listOf(puntos[a], puntos[b]))
+                if (d > maxD) { maxD = d; idx = i }
+            }
+            if (idx >= 0 && maxD > toleranciaM) { guardar[idx] = true; pila.addLast(a to idx); pila.addLast(idx to b) }
+        }
+        return puntos.filterIndexed { i, _ -> guardar[i] }
+    }
+
     fun textoDistancia(m: Int): String = if (m < 1000) "$m m" else "%.1f km".format(m / 1000.0)
 }

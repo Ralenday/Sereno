@@ -30,17 +30,25 @@ class SnapshotTest {
         assertTrue(mejor.minutos in 15..70)
     }
 
-    /** Documenta el hueco de datos: en OSM no hay rutas mexicanas con paradas en SLRC ni Mexicali. */
-    @Test fun ciudadesChicasSinRutasEnOsm() {
+    /** En OSM no hay rutas mexicanas con paradas en SLRC, pero sí en rutas_locales_slrc.json. */
+    @Test fun slrcTieneRutasLocalesDeCombi() {
+        val osm = Osm(File("build/tmp"), null)
         assertTrue(lineas("slrc").isEmpty())
-        assertTrue(lineas("mxl").isEmpty())
+        val locales = osm.parsearRutasLocales(JSONObject(File("src/main/assets/rutas_locales_slrc.json").readText()))
+        assertTrue(locales.size >= 8) // 4 rutas en ambos sentidos
+        // De Garita/Centro a IMSS / Hospital (Calle 26) o Hotel Araiza en combi ($14)
+        val rutas = Transporte(Ciudades.SLRC).planear(
+            Punto(32.4831, -114.7809), // Hotel San Antonio (Centro)
+            Punto(32.4222, -114.7433), // IMSS No. 38 (Calle 42)
+            locales,
+        )
+        val enCombi = rutas.first { r -> r.tramos.any { it.modo == Modo.MICRO } }
+        org.junit.Assert.assertEquals(14.0, enCombi.costo, 0.001)
     }
 
-    @Test fun plantillaDeRutasLocalesSeIgnora() {
+    @Test fun plantillaDeRutasLocalesCdmxSeIgnora() {
         val osm = Osm(File("build/tmp"), null)
-        for (c in listOf("slrc", "mxl", "cdmx")) {
-            assertTrue(osm.parsearRutasLocales(JSONObject(File("src/main/assets/rutas_locales_$c.json").readText())).isEmpty())
-        }
+        assertTrue(osm.parsearRutasLocales(JSONObject(File("src/main/assets/rutas_locales_cdmx.json").readText())).isEmpty())
         val una = JSONObject("""{"rutas":[{"ref":"3","nombre":"Ruta 3","modo":"BUS","paradas":[
             {"nombre":"A","lat":32.48,"lon":-114.78},{"nombre":"B","lat":32.46,"lon":-114.76}]}]}""")
         assertTrue(osm.parsearRutasLocales(una).single().paradas.size == 2)

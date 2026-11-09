@@ -32,6 +32,10 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -59,14 +63,17 @@ import com.ralenday.sereno.core.Giro
 import com.ralenday.sereno.core.Modo
 import com.ralenday.sereno.core.NavActual
 import com.ralenday.sereno.core.Orden
+import com.ralenday.sereno.core.Punto
 import com.ralenday.sereno.core.TipoAlerta
 import com.ralenday.sereno.core.TipoComando
 import kotlinx.coroutines.launch
+import kotlin.math.cos
 import kotlin.math.roundToInt
 
 val Ambar = Color(0xFFFCA311)
 val Rojo = Color(0xFFE5484D)
 val Verde = Color(0xFF2E9E5B)
+val AzulRuta = Color(0xFF00B8F0)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -80,8 +87,6 @@ fun AppReloj() {
     val context = LocalContext.current
     val enlace = remember { Enlace.get(context) }
     val vib = remember { Vibracion(context) }
-    // Se guardan los State (no sus valores) para que cada pantalla del NavHost lea el valor
-    // actual dentro de su propio scope; si no, se quedan con el estado de cuando se creó el grafo.
     val estadoState = enlace.estado.collectAsState()
     val conectadoState = enlace.conectado.collectAsState()
     val estado = estadoState.value
@@ -92,7 +97,6 @@ fun AppReloj() {
 
     VibracionesNavegacion(e.nav, vib)
 
-    // Alertas: vibran siempre; las que piden respuesta toman la pantalla
     var alertaVista by remember { mutableLongStateOf(0L) }
     LaunchedEffect(e.alerta?.id) {
         val a = e.alerta ?: return@LaunchedEffect
@@ -100,9 +104,10 @@ fun AppReloj() {
             if (a.tipo == TipoAlerta.INFO) vib.toque() else vib.alerta()
         }
     }
-    // Al empezar a navegar, el reloj salta solo a la pantalla de la flecha
     LaunchedEffect(e.nav != null) {
-        if (e.nav != null && nav.currentDestination?.route != "nav") nav.navigate("nav")
+        if (e.nav != null && nav.currentDestination?.route != "nav" && nav.currentDestination?.route != "mapa") {
+            nav.navigate("nav")
+        }
     }
 
     MaterialTheme {
@@ -118,8 +123,9 @@ fun AppReloj() {
                 val actual = { estadoState.value ?: EstadoReloj() }
                 composable("inicio") { PantallaInicio(actual(), conectadoState.value, enviar, nav::navigate) }
                 composable("hoteles") { PantallaHoteles(actual(), enviar) { nav.navigate("rutas") } }
-                composable("rutas") { PantallaRutas(actual(), enviar) }
-                composable("nav") { PantallaNav(actual(), enviar, conectadoState.value) }
+                composable("rutas") { PantallaRutas(actual(), enviar, verMapa = { nav.navigate("mapa") }) }
+                composable("nav") { PantallaNav(actual(), enviar, conectadoState.value, verMapa = { nav.navigate("mapa") }) }
+                composable("mapa") { PantallaMapaReloj(actual()) }
                 composable("ayuda") { PantallaAyuda() }
             }
         }
@@ -168,13 +174,10 @@ fun PantallaInicio(e: EstadoReloj, conectado: Boolean, enviar: (Comando) -> Unit
                 }
             }
             if (e.rutas.isNotEmpty()) item { Boton("Cómo llegar", "${e.rutas.size} rutas") { ir("rutas") } }
-            item { BotonSos { enviar(Comando(TipoComando.PANICO)) } }
-            item {
-                CompactButton(
-                    onClick = { enviar(Comando(TipoComando.COMPARTIR_UBICACION)) },
-                    label = { Text(if (e.compartiendo) "Dejar de compartir" else "Compartir ubicación") },
-                )
+            if (e.mapa != null || e.hoteles.isNotEmpty()) {
+                item { Boton("Mapa", if (e.mapa?.destinoNombre?.isNotBlank() == true) e.mapa!!.destinoNombre else "Ver ruta y hoteles") { ir("mapa") } }
             }
+            item { BotonSos { enviar(Comando(TipoComando.PANICO)) } }
             item { CompactButton(onClick = { ir("ayuda") }, label = { Text("Vibraciones") }) }
         }
     }
@@ -220,13 +223,16 @@ fun PantallaHoteles(e: EstadoReloj, enviar: (Comando) -> Unit, verRutas: () -> U
 }
 
 @Composable
-fun PantallaRutas(e: EstadoReloj, enviar: (Comando) -> Unit) {
+fun PantallaRutas(e: EstadoReloj, enviar: (Comando) -> Unit, verMapa: () -> Unit) {
     val lista = rememberTransformingLazyColumnState()
     val hotel = e.hoteles.firstOrNull { it.id == e.hotelElegido }
     ScreenScaffold(scrollState = lista) { padding ->
         TransformingLazyColumn(state = lista, contentPadding = padding) {
             item { ListHeader { Text(hotel?.nombre ?: "Rutas", maxLines = 2) } }
             if (e.buscando) item { Text("Calculando…") }
+            if (e.mapa != null) {
+                item { CompactButton(onClick = verMapa, label = { Text("🗺 Ver en mapa", color = Ambar) }) }
+            }
             e.rutas.forEachIndexed { i, r ->
                 item(key = "r$i") {
                     val resumen = r.tramos.joinToString(" ") { t ->
@@ -251,18 +257,17 @@ fun PantallaRutas(e: EstadoReloj, enviar: (Comando) -> Unit) {
 }
 
 @Composable
-fun PantallaNav(e: EstadoReloj, enviar: (Comando) -> Unit, conectado: Boolean) {
+fun PantallaNav(e: EstadoReloj, enviar: (Comando) -> Unit, conectado: Boolean, verMapa: () -> Unit) {
     val n = e.nav
     val lista = rememberTransformingLazyColumnState()
     if (e.soloVibracion && n != null) {
-        // Pantalla casi negra: no llama la atención. Toca para salir del modo.
         Box(
             Modifier.fillMaxSize().background(Color.Black).pointerInput(Unit) {
                 detectTapGestures(onDoubleTap = { enviar(Comando(TipoComando.SOLO_VIBRACION)) })
             },
             contentAlignment = Alignment.Center,
         ) {
-            Text("${Geo.textoDistancia(n.metrosAlGiro)}", color = Color.DarkGray, fontSize = 14.sp)
+            Text(Geo.textoDistancia(n.metrosAlGiro), color = Color.DarkGray, fontSize = 14.sp)
         }
         return
     }
@@ -288,10 +293,115 @@ fun PantallaNav(e: EstadoReloj, enviar: (Comando) -> Unit, conectado: Boolean) {
                     style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
                 )
             }
+            item { CompactButton(onClick = verMapa, label = { Text("🗺 Ver mapa", color = Ambar) }) }
             item { CompactButton(onClick = { enviar(Comando(TipoComando.SOLO_VIBRACION)) }, label = { Text("Solo vibración") }) }
             item { CompactButton(onClick = { enviar(Comando(TipoComando.RECALCULAR)) }, label = { Text("Recalcular") }) }
             item { CompactButton(onClick = { enviar(Comando(TipoComando.DETENER_NAV)) }, label = { Text("Detener") }) }
             item { BotonSos { enviar(Comando(TipoComando.PANICO)) } }
+        }
+    }
+}
+
+/** Mapa vectorial para la pantalla circular del reloj: muestra la ruta, hoteles, tu posición y el destino. */
+@Composable
+fun PantallaMapaReloj(e: EstadoReloj) {
+    val m = e.mapa
+    val puntos = remember(m, e.hoteles) {
+        buildList {
+            m?.yo?.let { add(it) }
+            m?.destino?.let { add(it) }
+            m?.trazos?.forEach { addAll(it.puntos) }
+            if (isEmpty()) addAll(e.hoteles.map { it.punto })
+        }
+    }
+    Box(Modifier.fillMaxSize().background(Color(0xFF101826)), contentAlignment = Alignment.Center) {
+        if (puntos.isEmpty()) {
+            Text("Busca un hotel para ver el mapa", textAlign = TextAlign.Center, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(18.dp))
+            return@Box
+        }
+        val minLat = puntos.minOf { it.lat }
+        val maxLat = puntos.maxOf { it.lat }
+        val minLon = puntos.minOf { it.lon }
+        val maxLon = puntos.maxOf { it.lon }
+        val cLat = (minLat + maxLat) / 2.0
+        val cLon = (minLon + maxLon) / 2.0
+        val cosLat = cos(Math.toRadians(cLat)).coerceAtLeast(0.5)
+        val spanLon = ((maxLon - minLon) * cosLat).coerceAtLeast(0.004)
+        val spanLat = (maxLat - minLat).coerceAtLeast(0.004)
+        val span = maxOf(spanLon, spanLat) * 1.45
+
+        Canvas(Modifier.fillMaxSize()) {
+            val w = size.width
+            val h = size.height
+            val escala = minOf(w, h) / span.toFloat()
+            fun aXY(p: Punto): Offset {
+                val x = w / 2f + ((p.lon - cLon) * cosLat).toFloat() * escala
+                val y = h / 2f - (p.lat - cLat).toFloat() * escala
+                return Offset(x, y)
+            }
+
+            // Cuadrícula de referencia en la esfera del reloj
+            val paso = w / 5f
+            for (i in 1..4) {
+                drawLine(Color(0xFF1E2B42), Offset(paso * i, 0f), Offset(paso * i, h), 1f)
+                drawLine(Color(0xFF1E2B42), Offset(0f, paso * i), Offset(w, paso * i), 1f)
+            }
+
+            // Trazos de la ruta
+            m?.trazos?.forEach { tr ->
+                if (tr.puntos.size >= 2) {
+                    val path = Path().apply {
+                        val p0 = aXY(tr.puntos.first())
+                        moveTo(p0.x, p0.y)
+                        tr.puntos.drop(1).forEach { pt ->
+                            val o = aXY(pt)
+                            lineTo(o.x, o.y)
+                        }
+                    }
+                    val color = when (tr.modo) {
+                        Modo.CAMINAR -> Ambar
+                        Modo.TAXI -> Color(0xFFA855F7)
+                        Modo.METRO -> Color(0xFFFF6B35)
+                        else -> AzulRuta
+                    }
+                    val efecto = if (tr.modo == Modo.CAMINAR) PathEffect.dashPathEffect(floatArrayOf(8f, 6f)) else null
+                    drawPath(path, Color.Black.copy(alpha = 0.7f), style = Stroke(width = 8f, cap = StrokeCap.Round, join = StrokeJoin.Round))
+                    drawPath(path, color, style = Stroke(width = 5f, cap = StrokeCap.Round, join = StrokeJoin.Round, pathEffect = efecto))
+                }
+            }
+
+            // Hoteles cercanos
+            e.hoteles.forEach { hotel ->
+                val o = aXY(hotel.punto)
+                drawCircle(Ambar.copy(alpha = 0.75f), radius = 4.5f, center = o)
+            }
+
+            // Destino (verde)
+            m?.destino?.let { dest ->
+                val o = aXY(dest)
+                drawCircle(Color.White, radius = 9f, center = o)
+                drawCircle(Verde, radius = 6.5f, center = o)
+            }
+
+            // Tu ubicación (azul)
+            m?.yo?.let { yo ->
+                val o = aXY(yo)
+                drawCircle(Color(0x552563EB), radius = 14f, center = o)
+                drawCircle(Color.White, radius = 7.5f, center = o)
+                drawCircle(Color(0xFF2563EB), radius = 5.5f, center = o)
+            }
+        }
+
+        Column(
+            Modifier.fillMaxSize().padding(vertical = 10.dp, horizontal = 24.dp),
+            verticalArrangement = Arrangement.SpaceBetween,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                m?.destinoNombre?.ifBlank { e.ciudad.ifBlank { "Mapa" } } ?: "Mapa",
+                fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Ambar, maxLines = 1,
+            )
+            Text("🔵 Tú  🟢 Destino  🟦 Ruta", fontSize = 9.sp, color = Color.LightGray)
         }
     }
 }
@@ -304,7 +414,7 @@ fun PantallaAlerta(texto: String, pide: Boolean, tipo: TipoAlerta, ok: () -> Uni
             item { ListHeader { Text(if (tipo == TipoAlerta.RIESGO) "⚠ Aviso" else "Sereno", color = if (tipo == TipoAlerta.RIESGO) Ambar else Color.White) } }
             item { Text(texto, textAlign = TextAlign.Center) }
             item { Boton(if (pide) "Estoy bien" else "OK", null, Verde) { ok() } }
-            if (pide) item { Boton("Necesito ayuda", null, Rojo) { sos() } }
+            if (pide) item { Boton("Llamar 911", null, Rojo) { sos() } }
         }
     }
 }
@@ -318,7 +428,7 @@ fun PantallaAyuda() {
             listOf(
                 "Izquierda: 2 toques", "Derecha: 3 toques", "Recto / leve: 1 toque",
                 "Vuelta en U: largo + 2", "Llegaste: 1 larga", "Alerta: 3 largas",
-                "SOS: mantén presionado", "Solo vibración: doble toque para salir",
+                "SOS 911: mantén presionado", "Solo vibración: doble toque para salir",
             ).forEach { item { Text(it, style = MaterialTheme.typography.bodySmall) } }
         }
     }
@@ -346,7 +456,7 @@ fun BotonSos(activar: () -> Unit) {
             .pointerInput(Unit) { detectTapGestures(onLongPress = { activar() }) },
         contentAlignment = Alignment.Center,
     ) {
-        Text("SOS (mantener)", color = Color.White, fontWeight = FontWeight.Bold)
+        Text("SOS 911 (mantener)", color = Color.White, fontWeight = FontWeight.Bold)
     }
 }
 

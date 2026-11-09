@@ -40,9 +40,18 @@ class LogicaTest {
 
     @Test fun detectaCiudades() {
         assertEquals("slrc", Ciudades.detectar(Punto(32.46, -114.77))?.id)
-        assertEquals("mxl", Ciudades.detectar(Punto(32.62, -115.45))?.id)
         assertEquals("cdmx", Ciudades.detectar(Punto(19.40, -99.15))?.id)
+        assertNull(Ciudades.detectar(Punto(32.62, -115.45))) // Mexicali: eliminado
         assertNull(Ciudades.detectar(Punto(25.67, -100.31))) // Monterrey: aún no
+    }
+
+    @Test fun taxiSlrcEsPorZonaDesde45() {
+        val centro = Ciudades.SLRC.centro
+        val cerca = Punto(32.481, -114.775)
+        val lejos = Punto(32.446, -114.735) // Parque Industrial
+        assertEquals(45.0, Ciudades.costoTaxi(Ciudades.SLRC, 1000.0, centro, cerca), 0.001)
+        assertTrue(Ciudades.costoTaxi(Ciudades.SLRC, 5000.0, centro, lejos) >= 75.0)
+        assertEquals(7.0, Ciudades.SLRC.tarifaDescuento ?: 0.0, 0.001)
     }
 
     @Test fun planeaMetroConTransbordoYTarifaUnica() {

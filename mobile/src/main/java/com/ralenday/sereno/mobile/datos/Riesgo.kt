@@ -19,7 +19,7 @@ data class EvaluacionRiesgo(val nivel: NivelRiesgo, val motivo: String)
  * - CDMX: carpetas de investigación de la FGJ (datos.cdmx.gob.mx, API CKAN `datastore_search`),
  *   filtrando robos a transeúnte por alcaldía. Las coordenadas del dataset están desplazadas por
  *   privacidad, por eso se cuenta en un radio de 300 m y no por calle exacta.
- * - Mexicali / SLRC: no hay delitos geolocalizados abiertos (solo cifras municipales del SESNSP),
+ * - SLRC: no hay delitos geolocalizados abiertos (solo cifras municipales del SESNSP),
  *   así que se usan los reportes que el propio usuario marca y la hora.
  *
  * Siempre es orientativo: se muestra como "aviso", nunca como certeza.

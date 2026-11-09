@@ -26,7 +26,7 @@ FIJAS="subway|light_rail|tram|monorail|train|aerialway"
 TURISMO='nwr["tourism"~"^(hotel|motel|hostel|guest_house|apartment)$"]'
 
 # id lat lon medio_lado
-for c in "slrc 32.4840 -114.7790 0.135" "mxl 32.6640 -115.4920 0.225" "cdmx 19.4326 -99.1332 0.25"; do
+for c in "slrc 32.4840 -114.7790 0.135" "cdmx 19.4326 -99.1332 0.25"; do
   set -- $c
   B=$(caja "$2" "$3" "$4")
   consultar "hoteles_$1.json" "[out:json][timeout:170];$TURISMO($B);out center tags;" || true

@@ -1,6 +1,10 @@
 package com.ralenday.sereno.mobile.logica
 
 import android.content.Context
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.util.Log
 import com.ralenday.sereno.core.Alerta
 import com.ralenday.sereno.core.Comando
@@ -9,6 +13,7 @@ import com.ralenday.sereno.core.EstadoReloj
 import com.ralenday.sereno.core.Geo
 import com.ralenday.sereno.core.Giro
 import com.ralenday.sereno.core.Hotel
+import com.ralenday.sereno.core.MapaReloj
 import com.ralenday.sereno.core.Modo
 import com.ralenday.sereno.core.NavActual
 import com.ralenday.sereno.core.Orden
@@ -17,6 +22,7 @@ import com.ralenday.sereno.core.Ruta
 import com.ralenday.sereno.core.TipoAlerta
 import com.ralenday.sereno.core.TipoComando
 import com.ralenday.sereno.core.Tramo
+import com.ralenday.sereno.core.TrazoMapa
 import com.ralenday.sereno.core.aHotel
 import com.ralenday.sereno.core.aJson
 import com.ralenday.sereno.core.aRuta
@@ -44,7 +50,6 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
-import java.util.Calendar
 import kotlin.math.roundToInt
 
 data class EstadoApp(
@@ -59,20 +64,20 @@ data class EstadoApp(
     val hotelElegido: Hotel? = null,
     val calculandoRutas: Boolean = false,
     val rutas: List<Ruta> = emptyList(),
+    val rutaSeleccionada: Int = 0,
     val rutaActiva: Int? = null,
     val nav: NavActual? = null,
     val riesgo: EvaluacionRiesgo? = null,
     val alerta: Alerta? = null,
     val soloVibracion: Boolean = false,
-    val compartiendo: Boolean = false,
     val simulando: Boolean = false,
     val mensaje: String? = null,
     val bitacora: List<String> = emptyList(),
 )
 
 /**
- * El cerebro del teléfono: busca, calcula rutas, sigue el GPS, vigila la seguridad y le manda
- * al reloj un resumen. Todas las mutaciones corren en un solo hilo lógico ([hilo]).
+ * El cerebro del teléfono: busca, calcula rutas, sigue el GPS y la brújula, vigila la seguridad y le
+ * manda al reloj un resumen (incluyendo los trazos del mapa). Todas las mutaciones corren en [hilo].
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class Motor private constructor(private val context: Context, private val scope: CoroutineScope) {
@@ -95,18 +100,19 @@ class Motor private constructor(private val context: Context, private val scope:
     private var fueraDeRuta = 0
     private var avisoBajarse = 0
     private var ultimaPos: Punto? = null
-    private var rumbo: Double? = null
+    private var rumboGpsReciente: Double? = null
+    @Volatile private var rumboBrujula: Double? = null
 
     // --- Seguridad (interno) ---
     private var anclaQuieto: Punto? = null
     private var tiempoAncla = System.currentTimeMillis()
     private var ultimoRiesgoPos: Punto? = null
-    private var jobCompartir: Job? = null
     private var jobRespuesta: Job? = null
     private var jobSimulacion: Job? = null
 
     fun iniciar() {
         cargarCache()
+        iniciarBrujula()
         scope.launch { enlace.comandos.collect { atender(it) } }
         // Publica al reloj cada cambio, como máximo cada 1 s (ahorra batería del reloj)
         scope.launch {
@@ -120,6 +126,29 @@ class Motor private constructor(private val context: Context, private val scope:
                 }
             }
         }
+    }
+
+    /** Escucha el sensor de rotación (brújula) para orientar la flecha cuando estás detenido. */
+    private fun iniciarBrujula() {
+        try {
+            val sm = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager ?: return
+            val sensor = sm.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR) ?: return
+            val matriz = FloatArray(9)
+            val orientacion = FloatArray(3)
+            sm.registerListener(
+                object : SensorEventListener {
+                    override fun onSensorChanged(ev: SensorEvent) {
+                        SensorManager.getRotationMatrixFromVector(matriz, ev.values)
+                        SensorManager.getOrientation(matriz, orientacion)
+                        val grados = (Math.toDegrees(orientacion[0].toDouble()) + 360.0) % 360.0
+                        rumboBrujula = grados
+                    }
+                    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+                },
+                sensor,
+                SensorManager.SENSOR_DELAY_UI,
+            )
+        } catch (_: Exception) { }
     }
 
     private fun lanzar(bloque: suspend () -> Unit) = scope.launch(hilo) {
@@ -138,14 +167,18 @@ class Motor private constructor(private val context: Context, private val scope:
             TipoComando.BUSCAR_HOTELES -> buscar(c.arg ?: "hotel barato cerca")
             TipoComando.ORDENAR -> ordenar(Orden.valueOf(c.arg ?: Orden.DISTANCIA.name))
             TipoComando.ELEGIR_HOTEL -> c.arg?.let { elegirHotel(it) }
-            TipoComando.ELEGIR_RUTA, TipoComando.INICIAR_NAV -> iniciarNav(c.arg?.toIntOrNull() ?: 0)
+            TipoComando.ELEGIR_RUTA -> seleccionarRuta(c.arg?.toIntOrNull() ?: 0)
+            TipoComando.INICIAR_NAV -> iniciarNav(c.arg?.toIntOrNull() ?: 0)
             TipoComando.DETENER_NAV -> detenerNav()
             TipoComando.RECALCULAR -> recalcular()
             TipoComando.PANICO -> panico()
             TipoComando.ESTOY_BIEN -> estoyBien()
             TipoComando.SOLO_VIBRACION -> _estado.update { it.copy(soloVibracion = !it.soloVibracion) }
-            TipoComando.COMPARTIR_UBICACION -> compartir(!_estado.value.compartiendo)
         }
+    }
+
+    fun seleccionarRuta(indice: Int) = lanzar {
+        _estado.update { it.copy(rutaSeleccionada = indice.coerceIn(0, (it.rutas.size - 1).coerceAtLeast(0))) }
     }
 
     fun usarFuente(fuente: String) = lanzar {
@@ -167,7 +200,7 @@ class Motor private constructor(private val context: Context, private val scope:
         // Mientras se simula, o con ciudad simulada, se ignora el GPS real
         if (!simulada && (e.fuenteUbicacion != "gps" || e.simulando)) return@lanzar
         val anterior = ultimaPos
-        rumbo = rumboGps ?: if (anterior != null && Geo.distancia(anterior, p) > 4) Geo.rumbo(anterior, p) else rumbo
+        rumboGpsReciente = rumboGps ?: if (anterior != null && Geo.distancia(anterior, p) > 4) Geo.rumbo(anterior, p) else rumboGpsReciente
         ultimaPos = p
         val ciudad = Ciudades.detectar(p) ?: e.ciudad
         if (ciudad != null && ciudad != e.ciudad) {
@@ -216,7 +249,7 @@ class Motor private constructor(private val context: Context, private val scope:
         _estado.update {
             it.copy(
                 buscando = false, hoteles = ordenarLista(lista, pet.orden), orden = pet.orden,
-                hotelElegido = null, rutas = emptyList(),
+                hotelElegido = null, rutas = emptyList(), rutaSeleccionada = 0,
                 mensaje = "${lista.size} opciones $descripcion$nota. Precios estimados.",
             )
         }
@@ -232,16 +265,18 @@ class Motor private constructor(private val context: Context, private val scope:
         val hotel = e.hoteles.firstOrNull { it.id == id } ?: return@lanzar
         val ciudad = e.ciudad ?: return@lanzar
         val origen = e.ubicacion ?: ciudad.centro
-        _estado.update { it.copy(hotelElegido = hotel, calculandoRutas = true, rutas = emptyList(), mensaje = "Calculando cómo llegar a ${hotel.nombre}…") }
-        // Fase 1 (instantánea): líneas incluidas en la app
+        _estado.update { it.copy(hotelElegido = hotel, calculandoRutas = true, rutas = emptyList(), rutaSeleccionada = 0, mensaje = "Calculando cómo llegar a ${hotel.nombre}…") }
+        // Fase 1 (instantánea): líneas incluidas en la app (OSM + rutas locales de SLRC)
         val fijas = withContext(Dispatchers.IO) { osm.lineasFijas(ciudad) }
-        mostrarRutas(ciudad, origen, hotel, fijas, final = false)
-        // Fase 2 (Overpass, puede tardar o fallar): camiones directos; se agregan si aparecen
-        val camiones = withContext(Dispatchers.IO) {
-            try { osm.lineasDeCamion(origen, hotel.punto) } catch (ex: Exception) { Log.w(TAG, "Camiones", ex); emptyList() }
+        mostrarRutas(ciudad, origen, hotel, fijas, final = ciudad.id == "slrc")
+        if (ciudad.id != "slrc") {
+            // Fase 2 (Overpass, en CDMX): camiones directos adicionales
+            val camiones = withContext(Dispatchers.IO) {
+                try { osm.lineasDeCamion(origen, hotel.punto) } catch (ex: Exception) { Log.w(TAG, "Camiones", ex); emptyList() }
+            }
+            if (_estado.value.hotelElegido?.id != hotel.id) return@lanzar
+            mostrarRutas(ciudad, origen, hotel, fijas + camiones, final = true)
         }
-        if (_estado.value.hotelElegido?.id != hotel.id) return@lanzar
-        mostrarRutas(ciudad, origen, hotel, fijas + camiones, final = true)
         guardarCache()
     }
 
@@ -250,12 +285,11 @@ class Motor private constructor(private val context: Context, private val scope:
         val sinTransporte = rutas.none { r -> r.tramos.any { it.modo != Modo.CAMINAR && it.modo != Modo.TAXI } }
         val extra = if (final) "" else " Buscando camiones…"
         _estado.update {
-            // Si ya se está navegando, no se cambian las rutas debajo del usuario
             if (it.rutaActiva != null) it.copy(calculandoRutas = false)
             else it.copy(
                 calculandoRutas = !final, rutas = rutas,
-                mensaje = (if (sinTransporte) "Sin transporte público con datos abiertos para este trayecto en ${ciudad.nombre}: caminar/taxi."
-                else "${rutas.size} opciones. Tiempos estimados (sin datos en tiempo real).") + extra,
+                mensaje = (if (sinTransporte) "Para este trayecto en ${ciudad.nombre}: caminar o taxi."
+                else "${rutas.size} opciones de ruta. Tiempos estimados.") + extra,
             )
         }
     }
@@ -267,7 +301,7 @@ class Motor private constructor(private val context: Context, private val scope:
         val ruta = e.rutas.getOrNull(indice) ?: return@lanzar
         tramos = ruta.tramos
         tramoIdx = 0
-        _estado.update { it.copy(rutaActiva = indice) }
+        _estado.update { it.copy(rutaActiva = indice, rutaSeleccionada = indice) }
         ServicioViaje.iniciar(context)
         comenzarTramo()
     }
@@ -296,16 +330,22 @@ class Motor private constructor(private val context: Context, private val scope:
         val meta = t.hastaPunto ?: return
         pasoIdx = 1; fueraDeRuta = 0; avisoBajarse = 0
         if (t.modo == Modo.CAMINAR) {
-            val noche = Calendar.getInstance().get(Calendar.HOUR_OF_DAY).let { it >= 19 || it < 6 }
-            val opciones = withContext(Dispatchers.IO) { Ruteo.caminar(aqui, meta, alternativas = noche && seguridad.preferirIluminadas) }
-            pie = if (opciones.size > 1) {
-                val puntuadas = withContext(Dispatchers.IO) {
-                    opciones.map { it to try { osm.puntajeNoche(it.puntos) } catch (_: Exception) { -1 } }
+            val opciones = withContext(Dispatchers.IO) {
+                try { Ruteo.caminar(aqui, meta, alternativas = false) } catch (_: Exception) { emptyList() }
+            }
+            pie = opciones.firstOrNull()
+            // Si OSRM devolvió la geometría por calles, guardarla en el tramo para que el mapa la dibuje
+            val puntosPie = pie?.puntos
+            if (!puntosPie.isNullOrEmpty()) {
+                val simplificados = Geo.simplificar(puntosPie, 8.0)
+                tramos = tramos.mapIndexed { idx, tr -> if (idx == tramoIdx) tr.copy(trazo = simplificados) else tr }
+                val activa = _estado.value.rutaActiva
+                if (activa != null) {
+                    _estado.update { est ->
+                        est.copy(rutas = est.rutas.mapIndexed { rIdx, r -> if (rIdx == activa) r.copy(tramos = tramos) else r })
+                    }
                 }
-                val mejor = puntuadas.maxBy { it.second }
-                anotar("Noche: ${puntuadas.size} rutas, puntajes ${puntuadas.map { it.second }}; elegida ${mejor.second}")
-                mejor.first
-            } else opciones.firstOrNull()
+            }
         } else {
             pie = null
         }
@@ -372,7 +412,8 @@ class Motor private constructor(private val context: Context, private val scope:
 
     private fun flecha(p: Punto, objetivo: Punto): Int {
         val r = Geo.rumbo(p, objetivo)
-        return rumbo?.let { Geo.diferenciaAngulo(r, it) } ?: r.roundToInt()
+        val referencia = rumboGpsReciente ?: rumboBrujula
+        return referencia?.let { Geo.diferenciaAngulo(r, it) } ?: r.roundToInt()
     }
 
     private fun velocidadMMin(m: Modo) = when (m) {
@@ -390,8 +431,8 @@ class Motor private constructor(private val context: Context, private val scope:
             while (isActive && tramos.getOrNull(tramoIdx) != null) {
                 val aqui = _estado.value.ubicacion ?: break
                 val t = tramos[tramoIdx]
-                val puntos = pie?.puntos
-                val objetivo = puntos?.drop(indiceMasCercano(aqui) + 1)?.firstOrNull { Geo.distancia(it, aqui) > 3 }
+                val puntos = pie?.puntos ?: t.trazo.takeIf { it.size >= 2 }
+                val objetivo = puntos?.drop(indiceMasCercano(puntos, aqui) + 1)?.firstOrNull { Geo.distancia(it, aqui) > 3 }
                     ?: t.hastaPunto ?: break
                 val paso = if (t.modo == Modo.CAMINAR) 12.0 else 90.0 // m por tick (≈ 8x caminando)
                 val d = Geo.distancia(aqui, objetivo)
@@ -406,7 +447,8 @@ class Motor private constructor(private val context: Context, private val scope:
         }
     }
 
-    private fun indiceMasCercano(p: Punto): Int = pie?.puntos?.withIndex()?.minByOrNull { Geo.distancia(it.value, p) }?.index ?: 0
+    private fun indiceMasCercano(puntos: List<Punto>, p: Punto): Int =
+        puntos.withIndex().minByOrNull { Geo.distancia(it.value, p) }?.index ?: 0
 
     private fun detenerSimulacion() {
         jobSimulacion?.cancel(); jobSimulacion = null
@@ -417,15 +459,11 @@ class Motor private constructor(private val context: Context, private val scope:
 
     fun panico() = lanzar {
         val p = _estado.value.ubicacion
-        val n = withContext(Dispatchers.IO) { seguridad.enviarATodos(seguridad.mensajePanico(p)) }
-        val texto = when {
-            seguridad.contactos.isEmpty() -> "Sin contactos de confianza. Llama al 911."
-            n == 0 -> "No se pudo enviar SMS (permiso). Llama al 911."
-            else -> "Alerta enviada a $n contacto(s). Compartiendo ubicación."
-        }
+        val coords = if (p != null) " (%.4f, %.4f)".format(java.util.Locale.US, p.lat, p.lon) else ""
+        seguridad.marcar911()
+        val texto = "SOS activado$coords. Marcando al 911 en el teléfono."
         _estado.update { it.copy(alerta = alerta(TipoAlerta.PANICO_ENVIADO, texto)) }
-        anotar("PÁNICO: $texto")
-        if (n > 0) compartir(true)
+        anotar("SOS: $texto")
     }
 
     fun estoyBien() = lanzar {
@@ -435,20 +473,6 @@ class Motor private constructor(private val context: Context, private val scope:
     }
 
     fun cerrarAlerta() = lanzar { _estado.update { it.copy(alerta = null) } }
-
-    fun compartir(activar: Boolean) = lanzar {
-        jobCompartir?.cancel()
-        _estado.update { it.copy(compartiendo = activar) }
-        if (!activar) return@lanzar
-        ServicioViaje.iniciar(context)
-        jobCompartir = scope.launch(hilo) {
-            while (isActive) {
-                val n = withContext(Dispatchers.IO) { seguridad.enviarATodos(seguridad.mensajeEnVivo(_estado.value.ubicacion)) }
-                anotar("Ubicación en vivo enviada a $n contacto(s)")
-                delay(INTERVALO_EN_VIVO_MS)
-            }
-        }
-    }
 
     fun reportarZona() = lanzar {
         val p = _estado.value.ubicacion ?: return@lanzar
@@ -462,7 +486,7 @@ class Motor private constructor(private val context: Context, private val scope:
         if (ancla == null || Geo.distancia(ancla, p) > RADIO_QUIETO_M) {
             anclaQuieto = p; tiempoAncla = System.currentTimeMillis(); return
         }
-        if (!seguridad.detectarQuieto || (e.nav == null && !e.compartiendo) || e.alerta?.tipo == TipoAlerta.QUIETO) return
+        if (!seguridad.detectarQuieto || e.nav == null || e.alerta?.tipo == TipoAlerta.QUIETO) return
         if (e.hotelElegido?.let { Geo.distancia(it.punto, p) < 150 } == true) return
         val minutos = ((System.currentTimeMillis() - tiempoAncla) / 60_000).toInt()
         if (minutos < seguridad.minutosQuieto) return
@@ -471,9 +495,8 @@ class Motor private constructor(private val context: Context, private val scope:
         jobRespuesta = scope.launch(hilo) {
             delay(ESPERA_RESPUESTA_MS)
             if (_estado.value.alerta?.tipo == TipoAlerta.QUIETO) {
-                val n = withContext(Dispatchers.IO) { seguridad.enviarATodos(seguridad.mensajeQuieto(_estado.value.ubicacion, minutos)) }
-                _estado.update { it.copy(alerta = alerta(TipoAlerta.PANICO_ENVIADO, "No respondiste: aviso enviado a $n contacto(s)")) }
-                if (n > 0) compartir(true)
+                seguridad.marcar911()
+                _estado.update { it.copy(alerta = alerta(TipoAlerta.PANICO_ENVIADO, "Sin respuesta tras $minutos min quieto: marcando al 911.")) }
             }
         }
     }
@@ -500,19 +523,34 @@ class Motor private constructor(private val context: Context, private val scope:
 
     // ================= Reloj / caché =================
 
-    private fun paraReloj(e: EstadoApp) = EstadoReloj(
-        ciudad = e.ciudad?.nombre.orEmpty(),
-        buscando = e.buscando || e.calculandoRutas,
-        hoteles = e.hoteles.take(MAX_HOTELES_RELOJ).map { it.copy(telefono = null, web = null, direccion = null) },
-        orden = e.orden,
-        hotelElegido = e.hotelElegido?.id,
-        rutas = e.rutas,
-        nav = e.nav,
-        alerta = e.alerta,
-        soloVibracion = e.soloVibracion,
-        compartiendo = e.compartiendo,
-        mensaje = e.mensaje,
-    )
+    private fun paraReloj(e: EstadoApp): EstadoReloj {
+        val rutaMapa = e.rutaActiva?.let { e.rutas.getOrNull(it) } ?: e.rutas.getOrNull(e.rutaSeleccionada)
+        val trazos = rutaMapa?.tramos?.mapNotNull { t ->
+            val pts = t.trazo.ifEmpty { listOfNotNull(t.desdePunto, t.hastaPunto) }
+            if (pts.size >= 2) TrazoMapa(t.modo, Geo.simplificar(pts, 18.0)) else null
+        }.orEmpty()
+        val mapa = if (e.ubicacion != null || e.hotelElegido != null || trazos.isNotEmpty()) {
+            MapaReloj(
+                yo = e.ubicacion ?: e.ciudad?.centro,
+                destino = e.hotelElegido?.punto,
+                destinoNombre = e.hotelElegido?.nombre.orEmpty(),
+                trazos = trazos,
+            )
+        } else null
+        return EstadoReloj(
+            ciudad = e.ciudad?.nombre.orEmpty(),
+            buscando = e.buscando || e.calculandoRutas,
+            hoteles = e.hoteles.take(MAX_HOTELES_RELOJ).map { it.copy(telefono = null, web = null, direccion = null) },
+            orden = e.orden,
+            hotelElegido = e.hotelElegido?.id,
+            rutas = e.rutas,
+            nav = e.nav,
+            alerta = e.alerta,
+            soloVibracion = e.soloVibracion,
+            mensaje = e.mensaje,
+            mapa = mapa,
+        )
+    }
 
     private fun ordenarLista(l: List<Hotel>, o: Orden) = when (o) {
         Orden.DISTANCIA -> l.sortedBy { it.distanciaM }
@@ -563,7 +601,6 @@ class Motor private constructor(private val context: Context, private val scope:
         private const val DESVIO_M = 45.0
         private const val RADIO_QUIETO_M = 40.0
         private const val ESPERA_RESPUESTA_MS = 120_000L
-        private const val INTERVALO_EN_VIVO_MS = 5 * 60_000L
         private const val MAX_HOTELES_RELOJ = 8
 
         @Volatile private var instancia: Motor? = null

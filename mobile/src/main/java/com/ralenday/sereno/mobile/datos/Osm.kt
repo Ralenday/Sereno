@@ -155,7 +155,7 @@ class Osm(private val cacheDir: File, private val assets: AssetManager?) {
     }
 
     /** Medio lado de la caja de cada ciudad, igual que los snapshots de assets/. */
-    private fun cajaGrados(ciudad: Ciudad) = when (ciudad.id) { "cdmx" -> 0.25; "mxl" -> 0.225; else -> 0.135 }
+    private fun cajaGrados(ciudad: Ciudad) = when (ciudad.id) { "cdmx" -> 0.25; else -> 0.135 }
 
     fun consultaLineas(ciudad: Ciudad): String {
         val d = cajaGrados(ciudad)
@@ -189,35 +189,6 @@ class Osm(private val cacheDir: File, private val assets: AssetManager?) {
             node(r.r); out body;
         """.trimIndent()
         return parsearLineas(overpass(q, timeoutMs = 25_000))
-    }
-
-    // ---------------- Iluminación / calles transitadas ----------------
-
-    /**
-     * Puntaje 0..100 de qué tan iluminada y transitada es una ruta a pie, con las etiquetas de OSM
-     * (`lit=yes/no` y el tipo de calle). Es una aproximación: OSM no siempre tiene `lit`.
-     */
-    fun puntajeNoche(puntos: List<Punto>): Int {
-        if (puntos.size < 2) return -1
-        val paso = maxOf(1, puntos.size / 40)
-        val muestra = puntos.filterIndexed { i, _ -> i % paso == 0 } + puntos.last()
-        val coords = muestra.joinToString(",") { "%.5f,%.5f".format(java.util.Locale.US, it.lat, it.lon) }
-        val q = "[out:json][timeout:30];way(around:20,$coords)[highway];out tags;"
-        val vias = overpass(q).getJSONArray("elements").objetos().mapNotNull { it.optJSONObject("tags") }
-        if (vias.isEmpty()) return -1
-        var total = 0.0
-        for (t in vias) {
-            val luz = when (t.optString("lit")) { "yes", "24/7", "automatic" -> 1.0; "no" -> 0.0; else -> 0.45 }
-            val transito = when (t.optString("highway")) {
-                "primary", "secondary", "trunk", "primary_link", "secondary_link" -> 1.0
-                "tertiary", "pedestrian", "living_street" -> 0.75
-                "residential", "unclassified" -> 0.45
-                "footway", "steps", "service" -> 0.3
-                else -> 0.15 // path, track, cycleway...
-            }
-            total += 0.6 * luz + 0.4 * transito
-        }
-        return (100 * total / vias.size).roundToInt()
     }
 
     // ---------------- Nominatim ----------------

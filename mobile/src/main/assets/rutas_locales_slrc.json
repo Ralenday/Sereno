@@ -1,14 +1,1928 @@
 {
-  "_formato": "Rutas capturadas a mano (no existen en OpenStreetMap ni como GTFS abierto). Cada ruta en UN sentido; paradas en orden de recorrido. modo: BUS | MICRO | TROLEBUS | METROBUS. Ejemplo de ruta abajo con 'activa': false (se ignora).",
+  "_formato": "Rutas públicas de combi/pesera de San Luis Río Colorado georreferenciadas sobre OpenStreetMap (tarifa general $14 MXN, estudiantes y adultos mayores $7 MXN). En SLRC se puede hacer la parada en cualquier punto del recorrido, por lo que se muestrean puntos a lo largo de toda la ruta en ambos sentidos.",
   "rutas": [
     {
-      "activa": false,
-      "ref": "EJEMPLO",
-      "nombre": "Ruta de ejemplo (centro -> norte)",
-      "modo": "BUS",
+      "activa": true,
+      "ref": "5 de Mayo",
+      "nombre": "Ruta 5 de Mayo (Ida)",
+      "modo": "MICRO",
       "paradas": [
-        {"nombre": "Parada 1", "lat": 0.0, "lon": 0.0},
-        {"nombre": "Parada 2", "lat": 0.0, "lon": 0.0}
+        {
+          "nombre": "Calle 3 y Av. Juárez",
+          "lat": 32.48091,
+          "lon": -114.78111
+        },
+        {
+          "nombre": "Av. Juárez y Calle 5",
+          "lat": 32.48015,
+          "lon": -114.77856
+        },
+        {
+          "nombre": "Av. Juárez y Calle 7",
+          "lat": 32.47927,
+          "lon": -114.77586
+        },
+        {
+          "nombre": "Av. Juárez y Calle 9",
+          "lat": 32.47851,
+          "lon": -114.77331
+        },
+        {
+          "nombre": "Av. Félix Contreras y Calle 8",
+          "lat": 32.47471,
+          "lon": -114.77496
+        },
+        {
+          "nombre": "Av. Revolución y Calle 11",
+          "lat": 32.47218,
+          "lon": -114.77241
+        },
+        {
+          "nombre": "Av. Revolución y Calle 14",
+          "lat": 32.47104,
+          "lon": -114.76866
+        },
+        {
+          "nombre": "Av. Revolución y Calle 16",
+          "lat": 32.47003,
+          "lon": -114.76536
+        },
+        {
+          "nombre": "Av. Venustiano Carranza y Calle 16",
+          "lat": 32.46598,
+          "lon": -114.76701
+        },
+        {
+          "nombre": "Calle 16 y Av. Guerrero",
+          "lat": 32.46332,
+          "lon": -114.76821
+        },
+        {
+          "nombre": "Calle 16 y Av. Tamaulipas",
+          "lat": 32.46066,
+          "lon": -114.76926
+        },
+        {
+          "nombre": "Av. Durango y Calle 16",
+          "lat": 32.458,
+          "lon": -114.77031
+        },
+        {
+          "nombre": "Av. Nayarit y Calle 16",
+          "lat": 32.4556,
+          "lon": -114.77136
+        },
+        {
+          "nombre": "Calle 16 y Av. Oaxaca",
+          "lat": 32.45269,
+          "lon": -114.77256
+        },
+        {
+          "nombre": "Av. Quintana Roo y Calle 17",
+          "lat": 32.44901,
+          "lon": -114.77361
+        },
+        {
+          "nombre": "Av. Coahuila B y Calle 16",
+          "lat": 32.44737,
+          "lon": -114.77481
+        },
+        {
+          "nombre": "Av. Mérida y Calle 16",
+          "lat": 32.44471,
+          "lon": -114.77586
+        },
+        {
+          "nombre": "Calle 16 y Av. Torreón B",
+          "lat": 32.44218,
+          "lon": -114.77691
+        },
+        {
+          "nombre": "Av. Lázaro Cárdenas y Calle 17",
+          "lat": 32.44003,
+          "lon": -114.77721
+        },
+        {
+          "nombre": "Av. Reforma Agraria y Calle 16",
+          "lat": 32.43686,
+          "lon": -114.77901
+        },
+        {
+          "nombre": "Calle 16 y Av. Mazatlán B",
+          "lat": 32.43407,
+          "lon": -114.78021
+        },
+        {
+          "nombre": "Calle 16 y Av. Crisantemas",
+          "lat": 32.43141,
+          "lon": -114.78126
+        },
+        {
+          "nombre": "Calle 17 y Av. Jazmín B",
+          "lat": 32.42914,
+          "lon": -114.78111
+        },
+        {
+          "nombre": "Av. Bugambilias B y Calle 21",
+          "lat": 32.42559,
+          "lon": -114.77721
+        },
+        {
+          "nombre": "Calle 23 y Av. Bugambilias B",
+          "lat": 32.4247,
+          "lon": -114.77421
+        },
+        {
+          "nombre": "Calle 25 y Av. Bugambilias B",
+          "lat": 32.42382,
+          "lon": -114.77121
+        },
+        {
+          "nombre": "Av. Flores B y Calle 25",
+          "lat": 32.41951,
+          "lon": -114.77286
+        },
+        {
+          "nombre": "Calle 25 y Av. Jacarandas",
+          "lat": 32.4166,
+          "lon": -114.77406
+        },
+        {
+          "nombre": "Calle 25 y Av. Nardos",
+          "lat": 32.41368,
+          "lon": -114.77526
+        },
+        {
+          "nombre": "Av. Canadá A y Bolivia",
+          "lat": 32.41115,
+          "lon": -114.77691
+        },
+        {
+          "nombre": "Calle 24 y Av. Canadá A",
+          "lat": 32.41267,
+          "lon": -114.77931
+        },
+        {
+          "nombre": "Calle 22 y Av. Canadá A",
+          "lat": 32.41406,
+          "lon": -114.78156
+        },
+        {
+          "nombre": "Calle 20 y Av. Canadá A",
+          "lat": 32.41533,
+          "lon": -114.78366
+        }
+      ]
+    },
+    {
+      "activa": true,
+      "ref": "5 de Mayo",
+      "nombre": "Ruta 5 de Mayo (Regreso)",
+      "modo": "MICRO",
+      "paradas": [
+        {
+          "nombre": "Calle 20 y Av. Canadá A",
+          "lat": 32.41533,
+          "lon": -114.78366
+        },
+        {
+          "nombre": "Calle 22 y Av. Canadá A",
+          "lat": 32.41406,
+          "lon": -114.78156
+        },
+        {
+          "nombre": "Calle 24 y Av. Canadá A",
+          "lat": 32.41267,
+          "lon": -114.77931
+        },
+        {
+          "nombre": "Av. Canadá A y Bolivia",
+          "lat": 32.41115,
+          "lon": -114.77691
+        },
+        {
+          "nombre": "Calle 25 y Av. Nardos",
+          "lat": 32.41368,
+          "lon": -114.77526
+        },
+        {
+          "nombre": "Calle 25 y Av. Jacarandas",
+          "lat": 32.4166,
+          "lon": -114.77406
+        },
+        {
+          "nombre": "Av. Flores B y Calle 25",
+          "lat": 32.41951,
+          "lon": -114.77286
+        },
+        {
+          "nombre": "Calle 25 y Av. Bugambilias B",
+          "lat": 32.42382,
+          "lon": -114.77121
+        },
+        {
+          "nombre": "Calle 23 y Av. Bugambilias B",
+          "lat": 32.4247,
+          "lon": -114.77421
+        },
+        {
+          "nombre": "Av. Bugambilias B y Calle 21",
+          "lat": 32.42559,
+          "lon": -114.77721
+        },
+        {
+          "nombre": "Calle 17 y Av. Jazmín B",
+          "lat": 32.42914,
+          "lon": -114.78111
+        },
+        {
+          "nombre": "Calle 16 y Av. Crisantemas",
+          "lat": 32.43141,
+          "lon": -114.78126
+        },
+        {
+          "nombre": "Calle 16 y Av. Mazatlán B",
+          "lat": 32.43407,
+          "lon": -114.78021
+        },
+        {
+          "nombre": "Av. Reforma Agraria y Calle 16",
+          "lat": 32.43686,
+          "lon": -114.77901
+        },
+        {
+          "nombre": "Av. Lázaro Cárdenas y Calle 17",
+          "lat": 32.44003,
+          "lon": -114.77721
+        },
+        {
+          "nombre": "Calle 16 y Av. Torreón B",
+          "lat": 32.44218,
+          "lon": -114.77691
+        },
+        {
+          "nombre": "Av. Mérida y Calle 16",
+          "lat": 32.44471,
+          "lon": -114.77586
+        },
+        {
+          "nombre": "Av. Coahuila B y Calle 16",
+          "lat": 32.44737,
+          "lon": -114.77481
+        },
+        {
+          "nombre": "Av. Quintana Roo y Calle 17",
+          "lat": 32.44901,
+          "lon": -114.77361
+        },
+        {
+          "nombre": "Calle 16 y Av. Oaxaca",
+          "lat": 32.45269,
+          "lon": -114.77256
+        },
+        {
+          "nombre": "Av. Nayarit y Calle 16",
+          "lat": 32.4556,
+          "lon": -114.77136
+        },
+        {
+          "nombre": "Av. Durango y Calle 16",
+          "lat": 32.458,
+          "lon": -114.77031
+        },
+        {
+          "nombre": "Calle 16 y Av. Tamaulipas",
+          "lat": 32.46066,
+          "lon": -114.76926
+        },
+        {
+          "nombre": "Calle 16 y Av. Guerrero",
+          "lat": 32.46332,
+          "lon": -114.76821
+        },
+        {
+          "nombre": "Av. Venustiano Carranza y Calle 16",
+          "lat": 32.46598,
+          "lon": -114.76701
+        },
+        {
+          "nombre": "Av. Revolución y Calle 16",
+          "lat": 32.47003,
+          "lon": -114.76536
+        },
+        {
+          "nombre": "Av. Revolución y Calle 14",
+          "lat": 32.47104,
+          "lon": -114.76866
+        },
+        {
+          "nombre": "Av. Revolución y Calle 11",
+          "lat": 32.47218,
+          "lon": -114.77241
+        },
+        {
+          "nombre": "Av. Félix Contreras y Calle 8",
+          "lat": 32.47471,
+          "lon": -114.77496
+        },
+        {
+          "nombre": "Av. Juárez y Calle 9",
+          "lat": 32.47851,
+          "lon": -114.77331
+        },
+        {
+          "nombre": "Av. Juárez y Calle 7",
+          "lat": 32.47927,
+          "lon": -114.77586
+        },
+        {
+          "nombre": "Av. Juárez y Calle 5",
+          "lat": 32.48015,
+          "lon": -114.77856
+        },
+        {
+          "nombre": "Calle 3 y Av. Juárez",
+          "lat": 32.48091,
+          "lon": -114.78111
+        }
+      ]
+    },
+    {
+      "activa": true,
+      "ref": "Sonora - P. Industrial",
+      "nombre": "Ruta Av. Sonora - Parque Industrial (Ida)",
+      "modo": "MICRO",
+      "paradas": [
+        {
+          "nombre": "Calle 2 y Av. Madero",
+          "lat": 32.48205,
+          "lon": -114.78201
+        },
+        {
+          "nombre": "Calle 4 y Av. Madero",
+          "lat": 32.48129,
+          "lon": -114.77946
+        },
+        {
+          "nombre": "Calle 6 y Av. Madero",
+          "lat": 32.48041,
+          "lon": -114.77676
+        },
+        {
+          "nombre": "Calle 4 y Av. Madero",
+          "lat": 32.48129,
+          "lon": -114.77946
+        },
+        {
+          "nombre": "Calle 2 y Av. Madero",
+          "lat": 32.48205,
+          "lon": -114.78201
+        },
+        {
+          "nombre": "Calle 2 y Av. Kino",
+          "lat": 32.47952,
+          "lon": -114.78306
+        },
+        {
+          "nombre": "Calle 2 y Av. Félix Contreras",
+          "lat": 32.47636,
+          "lon": -114.78396
+        },
+        {
+          "nombre": "Calle 2 y Av. 5 de Mayo",
+          "lat": 32.47433,
+          "lon": -114.78531
+        },
+        {
+          "nombre": "Calle 2 y Av. Venustiano Carranza",
+          "lat": 32.4718,
+          "lon": -114.78636
+        },
+        {
+          "nombre": "Calle 2 y Av. Guerrero",
+          "lat": 32.46927,
+          "lon": -114.78741
+        },
+        {
+          "nombre": "Calle 4 y Av. Guerrero",
+          "lat": 32.46826,
+          "lon": -114.78426
+        },
+        {
+          "nombre": "Av. Guerrero y Calle 7",
+          "lat": 32.46737,
+          "lon": -114.78126
+        },
+        {
+          "nombre": "Av. Guerrero y Calle 9",
+          "lat": 32.46636,
+          "lon": -114.77811
+        },
+        {
+          "nombre": "Calle 11 y Av. Guerrero",
+          "lat": 32.46547,
+          "lon": -114.77496
+        },
+        {
+          "nombre": "Av. Guerrero y Calle 13",
+          "lat": 32.46446,
+          "lon": -114.77196
+        },
+        {
+          "nombre": "Av. Guerrero y Calle 16",
+          "lat": 32.46357,
+          "lon": -114.76881
+        },
+        {
+          "nombre": "Calle 18 y Av. Guerrero",
+          "lat": 32.46256,
+          "lon": -114.76566
+        },
+        {
+          "nombre": "Av. Guerrero y Calle 21",
+          "lat": 32.46155,
+          "lon": -114.76266
+        },
+        {
+          "nombre": "Calle 23 y Av. Guerrero",
+          "lat": 32.46066,
+          "lon": -114.75951
+        },
+        {
+          "nombre": "Av. Guerrero y Calle 25",
+          "lat": 32.45965,
+          "lon": -114.75636
+        },
+        {
+          "nombre": "Av. Guerrero y Calle 27",
+          "lat": 32.45876,
+          "lon": -114.75336
+        },
+        {
+          "nombre": "Calle 30 y Av. Guerrero",
+          "lat": 32.45775,
+          "lon": -114.75021
+        },
+        {
+          "nombre": "Calle 30 y Av. Chiapas",
+          "lat": 32.45547,
+          "lon": -114.75126
+        },
+        {
+          "nombre": "Calle 30 y Av. Chihuahua",
+          "lat": 32.45319,
+          "lon": -114.75216
+        },
+        {
+          "nombre": "Calle 32 y Av. Chihuahua",
+          "lat": 32.45243,
+          "lon": -114.74946
+        },
+        {
+          "nombre": "Calle 34 y Av. Durango",
+          "lat": 32.45155,
+          "lon": -114.74676
+        },
+        {
+          "nombre": "Calle 34 y Av. Chiapas",
+          "lat": 32.45408,
+          "lon": -114.7457
+        },
+        {
+          "nombre": "Av. Guerrero y Calle 34",
+          "lat": 32.45661,
+          "lon": -114.74465
+        },
+        {
+          "nombre": "Av. Guerrero y Calle 36",
+          "lat": 32.4556,
+          "lon": -114.7415
+        },
+        {
+          "nombre": "Calle 39 y Av. Guerrero",
+          "lat": 32.45459,
+          "lon": -114.7382
+        },
+        {
+          "nombre": "Av. Guerrero y Calle 41",
+          "lat": 32.4537,
+          "lon": -114.73505
+        },
+        {
+          "nombre": "Av. Guerrero y Calle 44",
+          "lat": 32.45269,
+          "lon": -114.73175
+        },
+        {
+          "nombre": "Calle 46 y Av. Guerrero",
+          "lat": 32.45167,
+          "lon": -114.7286
+        },
+        {
+          "nombre": "Av. Venustiano Carranza y Calle 46",
+          "lat": 32.45383,
+          "lon": -114.72755
+        },
+        {
+          "nombre": "Av. Venustiano Carranza y Av. Libertad",
+          "lat": 32.45332,
+          "lon": -114.72515
+        },
+        {
+          "nombre": "Calle José López Portillo",
+          "lat": 32.45243,
+          "lon": -114.7223
+        },
+        {
+          "nombre": "Calle Dr. Samuel Ocaña",
+          "lat": 32.45205,
+          "lon": -114.719
+        },
+        {
+          "nombre": "Guerrero y Calle Dr. Samuel Ocaña",
+          "lat": 32.44939,
+          "lon": -114.7202
+        },
+        {
+          "nombre": "Misioneros y Calle Dr. Samuel Ocaña",
+          "lat": 32.44674,
+          "lon": -114.7214
+        },
+        {
+          "nombre": "Hacienda La Rojeña y Santa Fé",
+          "lat": 32.44395,
+          "lon": -114.72245
+        },
+        {
+          "nombre": "Árbol de Nem y Calle Dr. Samuel Ocaña",
+          "lat": 32.44129,
+          "lon": -114.72365
+        },
+        {
+          "nombre": "Punto en ruta",
+          "lat": 32.44028,
+          "lon": -114.7205
+        },
+        {
+          "nombre": "Calle Manantial y Calle Los Fresnos",
+          "lat": 32.43939,
+          "lon": -114.7175
+        },
+        {
+          "nombre": "Av. Jalisco",
+          "lat": 32.43838,
+          "lon": -114.71435
+        },
+        {
+          "nombre": "Punto en ruta",
+          "lat": 32.43952,
+          "lon": -114.71615
+        },
+        {
+          "nombre": "Punto en ruta",
+          "lat": 32.44686,
+          "lon": -114.71445
+        },
+        {
+          "nombre": "Dr. Samuel Ocaña y Calle Dr. Samuel Ocaña",
+          "lat": 32.45066,
+          "lon": -114.719
+        },
+        {
+          "nombre": "Calle Dr. Samuel Ocaña y Calle Empresarios",
+          "lat": 32.45319,
+          "lon": -114.7181
+        },
+        {
+          "nombre": "Calle Dr. Samuel Ocaña",
+          "lat": 32.45674,
+          "lon": -114.7169
+        },
+        {
+          "nombre": "Calle Dr. Samuel Ocaña y Av. de la Transformación",
+          "lat": 32.46104,
+          "lon": -114.71465
+        },
+        {
+          "nombre": "Av. Obregón",
+          "lat": 32.46357,
+          "lon": -114.71495
+        },
+        {
+          "nombre": "Av. Obregón",
+          "lat": 32.46256,
+          "lon": -114.71165
+        },
+        {
+          "nombre": "Av. Obregón",
+          "lat": 32.46155,
+          "lon": -114.7082
+        }
+      ]
+    },
+    {
+      "activa": true,
+      "ref": "Sonora - P. Industrial",
+      "nombre": "Ruta Av. Sonora - Parque Industrial (Regreso)",
+      "modo": "MICRO",
+      "paradas": [
+        {
+          "nombre": "Av. Obregón",
+          "lat": 32.46155,
+          "lon": -114.7082
+        },
+        {
+          "nombre": "Av. Obregón",
+          "lat": 32.46256,
+          "lon": -114.71165
+        },
+        {
+          "nombre": "Av. Obregón",
+          "lat": 32.46357,
+          "lon": -114.71495
+        },
+        {
+          "nombre": "Calle Dr. Samuel Ocaña y Av. de la Transformación",
+          "lat": 32.46104,
+          "lon": -114.71465
+        },
+        {
+          "nombre": "Calle Dr. Samuel Ocaña",
+          "lat": 32.45674,
+          "lon": -114.7169
+        },
+        {
+          "nombre": "Calle Dr. Samuel Ocaña y Calle Empresarios",
+          "lat": 32.45319,
+          "lon": -114.7181
+        },
+        {
+          "nombre": "Dr. Samuel Ocaña y Calle Dr. Samuel Ocaña",
+          "lat": 32.45066,
+          "lon": -114.719
+        },
+        {
+          "nombre": "Punto en ruta",
+          "lat": 32.44686,
+          "lon": -114.71445
+        },
+        {
+          "nombre": "Punto en ruta",
+          "lat": 32.43952,
+          "lon": -114.71615
+        },
+        {
+          "nombre": "Av. Jalisco",
+          "lat": 32.43838,
+          "lon": -114.71435
+        },
+        {
+          "nombre": "Calle Manantial y Calle Los Fresnos",
+          "lat": 32.43939,
+          "lon": -114.7175
+        },
+        {
+          "nombre": "Punto en ruta",
+          "lat": 32.44028,
+          "lon": -114.7205
+        },
+        {
+          "nombre": "Árbol de Nem y Calle Dr. Samuel Ocaña",
+          "lat": 32.44129,
+          "lon": -114.72365
+        },
+        {
+          "nombre": "Hacienda La Rojeña y Santa Fé",
+          "lat": 32.44395,
+          "lon": -114.72245
+        },
+        {
+          "nombre": "Misioneros y Calle Dr. Samuel Ocaña",
+          "lat": 32.44674,
+          "lon": -114.7214
+        },
+        {
+          "nombre": "Guerrero y Calle Dr. Samuel Ocaña",
+          "lat": 32.44939,
+          "lon": -114.7202
+        },
+        {
+          "nombre": "Calle Dr. Samuel Ocaña",
+          "lat": 32.45205,
+          "lon": -114.719
+        },
+        {
+          "nombre": "Calle José López Portillo",
+          "lat": 32.45243,
+          "lon": -114.7223
+        },
+        {
+          "nombre": "Av. Venustiano Carranza y Av. Libertad",
+          "lat": 32.45332,
+          "lon": -114.72515
+        },
+        {
+          "nombre": "Av. Venustiano Carranza y Calle 46",
+          "lat": 32.45383,
+          "lon": -114.72755
+        },
+        {
+          "nombre": "Calle 46 y Av. Guerrero",
+          "lat": 32.45167,
+          "lon": -114.7286
+        },
+        {
+          "nombre": "Av. Guerrero y Calle 44",
+          "lat": 32.45269,
+          "lon": -114.73175
+        },
+        {
+          "nombre": "Av. Guerrero y Calle 41",
+          "lat": 32.4537,
+          "lon": -114.73505
+        },
+        {
+          "nombre": "Calle 39 y Av. Guerrero",
+          "lat": 32.45459,
+          "lon": -114.7382
+        },
+        {
+          "nombre": "Av. Guerrero y Calle 36",
+          "lat": 32.4556,
+          "lon": -114.7415
+        },
+        {
+          "nombre": "Av. Guerrero y Calle 34",
+          "lat": 32.45661,
+          "lon": -114.74465
+        },
+        {
+          "nombre": "Calle 34 y Av. Chiapas",
+          "lat": 32.45408,
+          "lon": -114.7457
+        },
+        {
+          "nombre": "Calle 34 y Av. Durango",
+          "lat": 32.45155,
+          "lon": -114.74676
+        },
+        {
+          "nombre": "Calle 32 y Av. Chihuahua",
+          "lat": 32.45243,
+          "lon": -114.74946
+        },
+        {
+          "nombre": "Calle 30 y Av. Chihuahua",
+          "lat": 32.45319,
+          "lon": -114.75216
+        },
+        {
+          "nombre": "Calle 30 y Av. Chiapas",
+          "lat": 32.45547,
+          "lon": -114.75126
+        },
+        {
+          "nombre": "Calle 30 y Av. Guerrero",
+          "lat": 32.45775,
+          "lon": -114.75021
+        },
+        {
+          "nombre": "Av. Guerrero y Calle 27",
+          "lat": 32.45876,
+          "lon": -114.75336
+        },
+        {
+          "nombre": "Av. Guerrero y Calle 25",
+          "lat": 32.45965,
+          "lon": -114.75636
+        },
+        {
+          "nombre": "Calle 23 y Av. Guerrero",
+          "lat": 32.46066,
+          "lon": -114.75951
+        },
+        {
+          "nombre": "Av. Guerrero y Calle 21",
+          "lat": 32.46155,
+          "lon": -114.76266
+        },
+        {
+          "nombre": "Calle 18 y Av. Guerrero",
+          "lat": 32.46256,
+          "lon": -114.76566
+        },
+        {
+          "nombre": "Av. Guerrero y Calle 16",
+          "lat": 32.46357,
+          "lon": -114.76881
+        },
+        {
+          "nombre": "Av. Guerrero y Calle 13",
+          "lat": 32.46446,
+          "lon": -114.77196
+        },
+        {
+          "nombre": "Calle 11 y Av. Guerrero",
+          "lat": 32.46547,
+          "lon": -114.77496
+        },
+        {
+          "nombre": "Av. Guerrero y Calle 9",
+          "lat": 32.46636,
+          "lon": -114.77811
+        },
+        {
+          "nombre": "Av. Guerrero y Calle 7",
+          "lat": 32.46737,
+          "lon": -114.78126
+        },
+        {
+          "nombre": "Calle 4 y Av. Guerrero",
+          "lat": 32.46826,
+          "lon": -114.78426
+        },
+        {
+          "nombre": "Calle 2 y Av. Guerrero",
+          "lat": 32.46927,
+          "lon": -114.78741
+        },
+        {
+          "nombre": "Calle 2 y Av. Venustiano Carranza",
+          "lat": 32.4718,
+          "lon": -114.78636
+        },
+        {
+          "nombre": "Calle 2 y Av. 5 de Mayo",
+          "lat": 32.47433,
+          "lon": -114.78531
+        },
+        {
+          "nombre": "Calle 2 y Av. Félix Contreras",
+          "lat": 32.47636,
+          "lon": -114.78396
+        },
+        {
+          "nombre": "Calle 2 y Av. Kino",
+          "lat": 32.47952,
+          "lon": -114.78306
+        },
+        {
+          "nombre": "Calle 2 y Av. Madero",
+          "lat": 32.48205,
+          "lon": -114.78201
+        },
+        {
+          "nombre": "Calle 4 y Av. Madero",
+          "lat": 32.48129,
+          "lon": -114.77946
+        },
+        {
+          "nombre": "Calle 6 y Av. Madero",
+          "lat": 32.48041,
+          "lon": -114.77676
+        },
+        {
+          "nombre": "Calle 4 y Av. Madero",
+          "lat": 32.48129,
+          "lon": -114.77946
+        },
+        {
+          "nombre": "Calle 2 y Av. Madero",
+          "lat": 32.48205,
+          "lon": -114.78201
+        }
+      ]
+    },
+    {
+      "activa": true,
+      "ref": "Hidalgo y 26",
+      "nombre": "Ruta Hidalgo y Calle 26 (Ida)",
+      "modo": "MICRO",
+      "paradas": [
+        {
+          "nombre": "Calle 4 y Av. Madero",
+          "lat": 32.48117,
+          "lon": -114.77916
+        },
+        {
+          "nombre": "Av. Madero y Calle 7",
+          "lat": 32.48028,
+          "lon": -114.77586
+        },
+        {
+          "nombre": "Av. Hidalgo y Calle 6",
+          "lat": 32.47851,
+          "lon": -114.77676
+        },
+        {
+          "nombre": "Av. Hidalgo y Calle 9",
+          "lat": 32.4775,
+          "lon": -114.77346
+        },
+        {
+          "nombre": "Av. Hidalgo y Calle 12",
+          "lat": 32.47661,
+          "lon": -114.76971
+        },
+        {
+          "nombre": "Calle 14 y Av. Juárez",
+          "lat": 32.47598,
+          "lon": -114.76581
+        },
+        {
+          "nombre": "Av. Hidalgo y Calle 16",
+          "lat": 32.47446,
+          "lon": -114.76371
+        },
+        {
+          "nombre": "Av. Hidalgo y Calle 19",
+          "lat": 32.47345,
+          "lon": -114.76041
+        },
+        {
+          "nombre": "Av. Hidalgo y Calle 21",
+          "lat": 32.47243,
+          "lon": -114.75711
+        },
+        {
+          "nombre": "Calle 24 y Av. Hidalgo",
+          "lat": 32.47142,
+          "lon": -114.75381
+        },
+        {
+          "nombre": "Av. Hidalgo y Calle 26",
+          "lat": 32.47041,
+          "lon": -114.75051
+        },
+        {
+          "nombre": "Av. Revolución y Calle 26",
+          "lat": 32.4661,
+          "lon": -114.75231
+        },
+        {
+          "nombre": "Av. 5 de Mayo y Calle 29",
+          "lat": 32.46408,
+          "lon": -114.74946
+        },
+        {
+          "nombre": "Calle 31 y Av. 5 de Mayo",
+          "lat": 32.46307,
+          "lon": -114.746
+        },
+        {
+          "nombre": "Av. 5 de Mayo y Calle 34",
+          "lat": 32.46205,
+          "lon": -114.74255
+        },
+        {
+          "nombre": "Av. 5 de Mayo y Calle 36",
+          "lat": 32.46104,
+          "lon": -114.73925
+        },
+        {
+          "nombre": "Calle 40 y Av. 5 de Mayo",
+          "lat": 32.45952,
+          "lon": -114.7346
+        },
+        {
+          "nombre": "Calle 42 y Av. 5 de Mayo",
+          "lat": 32.45864,
+          "lon": -114.7322
+        },
+        {
+          "nombre": "Av. Libertad y Calle 42",
+          "lat": 32.45446,
+          "lon": -114.73415
+        },
+        {
+          "nombre": "Calle 42 y Av. Chiapas",
+          "lat": 32.4518,
+          "lon": -114.73505
+        },
+        {
+          "nombre": "Calle 42 y Av. Chihuahua",
+          "lat": 32.44914,
+          "lon": -114.73565
+        },
+        {
+          "nombre": "Calle 42 y Av. Sinaloa",
+          "lat": 32.44636,
+          "lon": -114.7367
+        },
+        {
+          "nombre": "Calle 42 y Av. Tlaxcala",
+          "lat": 32.44357,
+          "lon": -114.73775
+        },
+        {
+          "nombre": "Av. Colima y Calle 42",
+          "lat": 32.44091,
+          "lon": -114.7388
+        },
+        {
+          "nombre": "Av. Quintana Roo B y Calle 42",
+          "lat": 32.43825,
+          "lon": -114.73985
+        },
+        {
+          "nombre": "Calle 42 y Av. Puebla",
+          "lat": 32.43648,
+          "lon": -114.74075
+        },
+        {
+          "nombre": "Calle 42 y Av. Nuevo León",
+          "lat": 32.43331,
+          "lon": -114.7421
+        },
+        {
+          "nombre": "Calle 42 y Av. Mazatlán C",
+          "lat": 32.4247,
+          "lon": -114.74631
+        },
+        {
+          "nombre": "Av. Tuxpan y Av. Mazatlán C",
+          "lat": 32.42318,
+          "lon": -114.7442
+        },
+        {
+          "nombre": "Av. Jalapa A y Calle 44",
+          "lat": 32.42179,
+          "lon": -114.74465
+        }
+      ]
+    },
+    {
+      "activa": true,
+      "ref": "Hidalgo y 26",
+      "nombre": "Ruta Hidalgo y Calle 26 (Regreso)",
+      "modo": "MICRO",
+      "paradas": [
+        {
+          "nombre": "Av. Jalapa A y Calle 44",
+          "lat": 32.42179,
+          "lon": -114.74465
+        },
+        {
+          "nombre": "Av. Tuxpan y Av. Mazatlán C",
+          "lat": 32.42318,
+          "lon": -114.7442
+        },
+        {
+          "nombre": "Calle 42 y Av. Mazatlán C",
+          "lat": 32.4247,
+          "lon": -114.74631
+        },
+        {
+          "nombre": "Calle 42 y Av. Nuevo León",
+          "lat": 32.43331,
+          "lon": -114.7421
+        },
+        {
+          "nombre": "Calle 42 y Av. Puebla",
+          "lat": 32.43648,
+          "lon": -114.74075
+        },
+        {
+          "nombre": "Av. Quintana Roo B y Calle 42",
+          "lat": 32.43825,
+          "lon": -114.73985
+        },
+        {
+          "nombre": "Av. Colima y Calle 42",
+          "lat": 32.44091,
+          "lon": -114.7388
+        },
+        {
+          "nombre": "Calle 42 y Av. Tlaxcala",
+          "lat": 32.44357,
+          "lon": -114.73775
+        },
+        {
+          "nombre": "Calle 42 y Av. Sinaloa",
+          "lat": 32.44636,
+          "lon": -114.7367
+        },
+        {
+          "nombre": "Calle 42 y Av. Chihuahua",
+          "lat": 32.44914,
+          "lon": -114.73565
+        },
+        {
+          "nombre": "Calle 42 y Av. Chiapas",
+          "lat": 32.4518,
+          "lon": -114.73505
+        },
+        {
+          "nombre": "Av. Libertad y Calle 42",
+          "lat": 32.45446,
+          "lon": -114.73415
+        },
+        {
+          "nombre": "Calle 42 y Av. 5 de Mayo",
+          "lat": 32.45864,
+          "lon": -114.7322
+        },
+        {
+          "nombre": "Calle 40 y Av. 5 de Mayo",
+          "lat": 32.45952,
+          "lon": -114.7346
+        },
+        {
+          "nombre": "Av. 5 de Mayo y Calle 36",
+          "lat": 32.46104,
+          "lon": -114.73925
+        },
+        {
+          "nombre": "Av. 5 de Mayo y Calle 34",
+          "lat": 32.46205,
+          "lon": -114.74255
+        },
+        {
+          "nombre": "Calle 31 y Av. 5 de Mayo",
+          "lat": 32.46307,
+          "lon": -114.746
+        },
+        {
+          "nombre": "Av. 5 de Mayo y Calle 29",
+          "lat": 32.46408,
+          "lon": -114.74946
+        },
+        {
+          "nombre": "Av. Revolución y Calle 26",
+          "lat": 32.4661,
+          "lon": -114.75231
+        },
+        {
+          "nombre": "Av. Hidalgo y Calle 26",
+          "lat": 32.47041,
+          "lon": -114.75051
+        },
+        {
+          "nombre": "Calle 24 y Av. Hidalgo",
+          "lat": 32.47142,
+          "lon": -114.75381
+        },
+        {
+          "nombre": "Av. Hidalgo y Calle 21",
+          "lat": 32.47243,
+          "lon": -114.75711
+        },
+        {
+          "nombre": "Av. Hidalgo y Calle 19",
+          "lat": 32.47345,
+          "lon": -114.76041
+        },
+        {
+          "nombre": "Av. Hidalgo y Calle 16",
+          "lat": 32.47446,
+          "lon": -114.76371
+        },
+        {
+          "nombre": "Calle 14 y Av. Juárez",
+          "lat": 32.47598,
+          "lon": -114.76581
+        },
+        {
+          "nombre": "Av. Hidalgo y Calle 12",
+          "lat": 32.47661,
+          "lon": -114.76971
+        },
+        {
+          "nombre": "Av. Hidalgo y Calle 9",
+          "lat": 32.4775,
+          "lon": -114.77346
+        },
+        {
+          "nombre": "Av. Hidalgo y Calle 6",
+          "lat": 32.47851,
+          "lon": -114.77676
+        },
+        {
+          "nombre": "Av. Madero y Calle 7",
+          "lat": 32.48028,
+          "lon": -114.77586
+        },
+        {
+          "nombre": "Calle 4 y Av. Madero",
+          "lat": 32.48117,
+          "lon": -114.77916
+        }
+      ]
+    },
+    {
+      "activa": true,
+      "ref": "Jazmín - IMSS",
+      "nombre": "Ruta Jazmín - IMSS I y II (Ida)",
+      "modo": "MICRO",
+      "paradas": [
+        {
+          "nombre": "Calle 2 y Av. Madero",
+          "lat": 32.48205,
+          "lon": -114.78201
+        },
+        {
+          "nombre": "Calle 4 y Av. Madero",
+          "lat": 32.48129,
+          "lon": -114.77946
+        },
+        {
+          "nombre": "Calle 6 y Av. Madero",
+          "lat": 32.48041,
+          "lon": -114.77676
+        },
+        {
+          "nombre": "Calle 4 y Av. Madero",
+          "lat": 32.48129,
+          "lon": -114.77946
+        },
+        {
+          "nombre": "Calle 2 y Av. Madero",
+          "lat": 32.48205,
+          "lon": -114.78201
+        },
+        {
+          "nombre": "Calle 2 y Av. Kino",
+          "lat": 32.47939,
+          "lon": -114.78306
+        },
+        {
+          "nombre": "Calle 2 y Av. Félix Contreras",
+          "lat": 32.47636,
+          "lon": -114.78396
+        },
+        {
+          "nombre": "Calle 2 y Av. 5 de Mayo",
+          "lat": 32.47421,
+          "lon": -114.78531
+        },
+        {
+          "nombre": "Calle 2 y Av. Venustiano Carranza",
+          "lat": 32.47155,
+          "lon": -114.78636
+        },
+        {
+          "nombre": "Av. Libertad y Av. Guerrero",
+          "lat": 32.47066,
+          "lon": -114.78936
+        },
+        {
+          "nombre": "Av. Guerrero",
+          "lat": 32.47028,
+          "lon": -114.79221
+        },
+        {
+          "nombre": "Calzada Constitución y Av. Sonora",
+          "lat": 32.46978,
+          "lon": -114.79551
+        },
+        {
+          "nombre": "Calzada Constitución y Av. Río Mayo",
+          "lat": 32.46927,
+          "lon": -114.79852
+        },
+        {
+          "nombre": "Calzada Monterrey y Av. Durango",
+          "lat": 32.46674,
+          "lon": -114.79957
+        },
+        {
+          "nombre": "Calle Querétaro y Calzada Monterrey",
+          "lat": 32.46408,
+          "lon": -114.80062
+        },
+        {
+          "nombre": "Calzada Monterrey y Av. Pascual Ortiz Rubio",
+          "lat": 32.46155,
+          "lon": -114.80167
+        },
+        {
+          "nombre": "Calzada Monterrey y Av. Emilio Portes Gil",
+          "lat": 32.45902,
+          "lon": -114.80272
+        },
+        {
+          "nombre": "Calzada Monterrey y Av. Roberto Fierro",
+          "lat": 32.45636,
+          "lon": -114.80377
+        },
+        {
+          "nombre": "Calzada Monterrey y Av. Enrique Estrada",
+          "lat": 32.45383,
+          "lon": -114.80482
+        },
+        {
+          "nombre": "Av. Mérida y Calle Yocupicio",
+          "lat": 32.45256,
+          "lon": -114.80182
+        },
+        {
+          "nombre": "Calle Pesqueira y Av. Mérida",
+          "lat": 32.45167,
+          "lon": -114.79882
+        },
+        {
+          "nombre": "Av. Mérida y Av. México B",
+          "lat": 32.45079,
+          "lon": -114.79566
+        },
+        {
+          "nombre": "Av. México B y Calle 4",
+          "lat": 32.45015,
+          "lon": -114.79266
+        },
+        {
+          "nombre": "Calle 6 y Av. México B",
+          "lat": 32.44927,
+          "lon": -114.78966
+        },
+        {
+          "nombre": "Calle 8 y Av. México B",
+          "lat": 32.44838,
+          "lon": -114.78666
+        },
+        {
+          "nombre": "Av. México B y Calle 10",
+          "lat": 32.4475,
+          "lon": -114.78351
+        },
+        {
+          "nombre": "Av. México B y Av. Mérida",
+          "lat": 32.44661,
+          "lon": -114.78051
+        },
+        {
+          "nombre": "Calle 15 y Av. México B",
+          "lat": 32.44572,
+          "lon": -114.77751
+        },
+        {
+          "nombre": "Calle 17 y Av. México B",
+          "lat": 32.44471,
+          "lon": -114.77451
+        },
+        {
+          "nombre": "Av. México B y Av. Mérida",
+          "lat": 32.44382,
+          "lon": -114.77136
+        },
+        {
+          "nombre": "Calle 22 y Av. México B",
+          "lat": 32.44294,
+          "lon": -114.76836
+        },
+        {
+          "nombre": "Calle 22 y Av. Torreón",
+          "lat": 32.44028,
+          "lon": -114.76941
+        },
+        {
+          "nombre": "Calle 22 y Av. Lázaro Cárdenas del Río B",
+          "lat": 32.43724,
+          "lon": -114.77046
+        },
+        {
+          "nombre": "Calle 22 y Av. 20 de Noviembre B",
+          "lat": 32.43559,
+          "lon": -114.77166
+        },
+        {
+          "nombre": "Calle 22 y Av. Mazatlán A",
+          "lat": 32.4323,
+          "lon": -114.77286
+        },
+        {
+          "nombre": "Calle 22 y Av. Jalapa B",
+          "lat": 32.42964,
+          "lon": -114.77391
+        },
+        {
+          "nombre": "Av. Crisantemas y Calle 24",
+          "lat": 32.42838,
+          "lon": -114.77076
+        },
+        {
+          "nombre": "Av. Crisantemas y Av. Crisantemas B",
+          "lat": 32.42724,
+          "lon": -114.76746
+        },
+        {
+          "nombre": "Calle 29 y Av. Crisantemas",
+          "lat": 32.4266,
+          "lon": -114.76431
+        },
+        {
+          "nombre": "Av. Crisantemas y Calle 31",
+          "lat": 32.42559,
+          "lon": -114.76116
+        },
+        {
+          "nombre": "Av. Crisantemas y Calle 34",
+          "lat": 32.4247,
+          "lon": -114.75801
+        },
+        {
+          "nombre": "Calle 36 y Av. Crisantemas",
+          "lat": 32.42369,
+          "lon": -114.75486
+        },
+        {
+          "nombre": "Av. Crisantemas y Calle 39",
+          "lat": 32.42268,
+          "lon": -114.75156
+        },
+        {
+          "nombre": "Calle 41 y Av. Crisantemas",
+          "lat": 32.42166,
+          "lon": -114.74841
+        },
+        {
+          "nombre": "Av. Crisantemas y Calle 44",
+          "lat": 32.42065,
+          "lon": -114.74525
+        },
+        {
+          "nombre": "Av. Tuxpan y Av. Mazatlán C",
+          "lat": 32.42318,
+          "lon": -114.7442
+        },
+        {
+          "nombre": "Calle 42 y Av. Lázaro Cárdenas A",
+          "lat": 32.4304,
+          "lon": -114.7433
+        },
+        {
+          "nombre": "Av. Nuevo León y Calle 45",
+          "lat": 32.43255,
+          "lon": -114.73865
+        },
+        {
+          "nombre": "Av. México y Calle 46",
+          "lat": 32.43395,
+          "lon": -114.7358
+        },
+        {
+          "nombre": "Calle 47 y Av. Quintana Roo",
+          "lat": 32.43686,
+          "lon": -114.73325
+        },
+        {
+          "nombre": "Av. Jalisco",
+          "lat": 32.44142,
+          "lon": -114.72725
+        },
+        {
+          "nombre": "Calle 47 y Av. Chiapas",
+          "lat": 32.44927,
+          "lon": -114.72815
+        },
+        {
+          "nombre": "Del Parque y Calle Dr. Samuel Ocaña",
+          "lat": 32.44167,
+          "lon": -114.72335
+        },
+        {
+          "nombre": "Punto en ruta",
+          "lat": 32.44078,
+          "lon": -114.72035
+        },
+        {
+          "nombre": "Calle Manantial",
+          "lat": 32.43977,
+          "lon": -114.71705
+        },
+        {
+          "nombre": "Punto en ruta",
+          "lat": 32.43876,
+          "lon": -114.71375
+        },
+        {
+          "nombre": "Calle Manantial",
+          "lat": 32.43977,
+          "lon": -114.71705
+        },
+        {
+          "nombre": "Punto en ruta",
+          "lat": 32.44078,
+          "lon": -114.72035
+        },
+        {
+          "nombre": "Árbol de Nem y Calle Dr. Samuel Ocaña",
+          "lat": 32.4418,
+          "lon": -114.7238
+        },
+        {
+          "nombre": "Punto en ruta",
+          "lat": 32.44281,
+          "lon": -114.72725
+        },
+        {
+          "nombre": "Calle 47 y Av. Sinaloa",
+          "lat": 32.44446,
+          "lon": -114.7304
+        },
+        {
+          "nombre": "Calle 47 y Av. Chihuahua",
+          "lat": 32.44686,
+          "lon": -114.72935
+        },
+        {
+          "nombre": "Calle 47",
+          "lat": 32.44977,
+          "lon": -114.72815
+        },
+        {
+          "nombre": "Calle 47 y Av. Libertad",
+          "lat": 32.45243,
+          "lon": -114.7271
+        },
+        {
+          "nombre": "Calle 47 y Av. Guadalupe Victoria",
+          "lat": 32.45496,
+          "lon": -114.7259
+        },
+        {
+          "nombre": "Calle 47 y Av. Revolución",
+          "lat": 32.45762,
+          "lon": -114.72485
+        },
+        {
+          "nombre": "Av. de la Transformación",
+          "lat": 32.46231,
+          "lon": -114.7205
+        },
+        {
+          "nombre": "Calle Dr. Samuel Ocaña",
+          "lat": 32.46256,
+          "lon": -114.7151
+        },
+        {
+          "nombre": "Av. de la Industria y Av. Obregón",
+          "lat": 32.46193,
+          "lon": -114.7115
+        },
+        {
+          "nombre": "Av. Obregón",
+          "lat": 32.46117,
+          "lon": -114.7082
+        }
+      ]
+    },
+    {
+      "activa": true,
+      "ref": "Jazmín - IMSS",
+      "nombre": "Ruta Jazmín - IMSS I y II (Regreso)",
+      "modo": "MICRO",
+      "paradas": [
+        {
+          "nombre": "Av. Obregón",
+          "lat": 32.46117,
+          "lon": -114.7082
+        },
+        {
+          "nombre": "Av. de la Industria y Av. Obregón",
+          "lat": 32.46193,
+          "lon": -114.7115
+        },
+        {
+          "nombre": "Calle Dr. Samuel Ocaña",
+          "lat": 32.46256,
+          "lon": -114.7151
+        },
+        {
+          "nombre": "Av. de la Transformación",
+          "lat": 32.46231,
+          "lon": -114.7205
+        },
+        {
+          "nombre": "Calle 47 y Av. Revolución",
+          "lat": 32.45762,
+          "lon": -114.72485
+        },
+        {
+          "nombre": "Calle 47 y Av. Guadalupe Victoria",
+          "lat": 32.45496,
+          "lon": -114.7259
+        },
+        {
+          "nombre": "Calle 47 y Av. Libertad",
+          "lat": 32.45243,
+          "lon": -114.7271
+        },
+        {
+          "nombre": "Calle 47",
+          "lat": 32.44977,
+          "lon": -114.72815
+        },
+        {
+          "nombre": "Calle 47 y Av. Chihuahua",
+          "lat": 32.44686,
+          "lon": -114.72935
+        },
+        {
+          "nombre": "Calle 47 y Av. Sinaloa",
+          "lat": 32.44446,
+          "lon": -114.7304
+        },
+        {
+          "nombre": "Punto en ruta",
+          "lat": 32.44281,
+          "lon": -114.72725
+        },
+        {
+          "nombre": "Árbol de Nem y Calle Dr. Samuel Ocaña",
+          "lat": 32.4418,
+          "lon": -114.7238
+        },
+        {
+          "nombre": "Punto en ruta",
+          "lat": 32.44078,
+          "lon": -114.72035
+        },
+        {
+          "nombre": "Calle Manantial",
+          "lat": 32.43977,
+          "lon": -114.71705
+        },
+        {
+          "nombre": "Punto en ruta",
+          "lat": 32.43876,
+          "lon": -114.71375
+        },
+        {
+          "nombre": "Calle Manantial",
+          "lat": 32.43977,
+          "lon": -114.71705
+        },
+        {
+          "nombre": "Punto en ruta",
+          "lat": 32.44078,
+          "lon": -114.72035
+        },
+        {
+          "nombre": "Del Parque y Calle Dr. Samuel Ocaña",
+          "lat": 32.44167,
+          "lon": -114.72335
+        },
+        {
+          "nombre": "Calle 47 y Av. Chiapas",
+          "lat": 32.44927,
+          "lon": -114.72815
+        },
+        {
+          "nombre": "Av. Jalisco",
+          "lat": 32.44142,
+          "lon": -114.72725
+        },
+        {
+          "nombre": "Calle 47 y Av. Quintana Roo",
+          "lat": 32.43686,
+          "lon": -114.73325
+        },
+        {
+          "nombre": "Av. México y Calle 46",
+          "lat": 32.43395,
+          "lon": -114.7358
+        },
+        {
+          "nombre": "Av. Nuevo León y Calle 45",
+          "lat": 32.43255,
+          "lon": -114.73865
+        },
+        {
+          "nombre": "Calle 42 y Av. Lázaro Cárdenas A",
+          "lat": 32.4304,
+          "lon": -114.7433
+        },
+        {
+          "nombre": "Av. Tuxpan y Av. Mazatlán C",
+          "lat": 32.42318,
+          "lon": -114.7442
+        },
+        {
+          "nombre": "Av. Crisantemas y Calle 44",
+          "lat": 32.42065,
+          "lon": -114.74525
+        },
+        {
+          "nombre": "Calle 41 y Av. Crisantemas",
+          "lat": 32.42166,
+          "lon": -114.74841
+        },
+        {
+          "nombre": "Av. Crisantemas y Calle 39",
+          "lat": 32.42268,
+          "lon": -114.75156
+        },
+        {
+          "nombre": "Calle 36 y Av. Crisantemas",
+          "lat": 32.42369,
+          "lon": -114.75486
+        },
+        {
+          "nombre": "Av. Crisantemas y Calle 34",
+          "lat": 32.4247,
+          "lon": -114.75801
+        },
+        {
+          "nombre": "Av. Crisantemas y Calle 31",
+          "lat": 32.42559,
+          "lon": -114.76116
+        },
+        {
+          "nombre": "Calle 29 y Av. Crisantemas",
+          "lat": 32.4266,
+          "lon": -114.76431
+        },
+        {
+          "nombre": "Av. Crisantemas y Av. Crisantemas B",
+          "lat": 32.42724,
+          "lon": -114.76746
+        },
+        {
+          "nombre": "Av. Crisantemas y Calle 24",
+          "lat": 32.42838,
+          "lon": -114.77076
+        },
+        {
+          "nombre": "Calle 22 y Av. Jalapa B",
+          "lat": 32.42964,
+          "lon": -114.77391
+        },
+        {
+          "nombre": "Calle 22 y Av. Mazatlán A",
+          "lat": 32.4323,
+          "lon": -114.77286
+        },
+        {
+          "nombre": "Calle 22 y Av. 20 de Noviembre B",
+          "lat": 32.43559,
+          "lon": -114.77166
+        },
+        {
+          "nombre": "Calle 22 y Av. Lázaro Cárdenas del Río B",
+          "lat": 32.43724,
+          "lon": -114.77046
+        },
+        {
+          "nombre": "Calle 22 y Av. Torreón",
+          "lat": 32.44028,
+          "lon": -114.76941
+        },
+        {
+          "nombre": "Calle 22 y Av. México B",
+          "lat": 32.44294,
+          "lon": -114.76836
+        },
+        {
+          "nombre": "Av. México B y Av. Mérida",
+          "lat": 32.44382,
+          "lon": -114.77136
+        },
+        {
+          "nombre": "Calle 17 y Av. México B",
+          "lat": 32.44471,
+          "lon": -114.77451
+        },
+        {
+          "nombre": "Calle 15 y Av. México B",
+          "lat": 32.44572,
+          "lon": -114.77751
+        },
+        {
+          "nombre": "Av. México B y Av. Mérida",
+          "lat": 32.44661,
+          "lon": -114.78051
+        },
+        {
+          "nombre": "Av. México B y Calle 10",
+          "lat": 32.4475,
+          "lon": -114.78351
+        },
+        {
+          "nombre": "Calle 8 y Av. México B",
+          "lat": 32.44838,
+          "lon": -114.78666
+        },
+        {
+          "nombre": "Calle 6 y Av. México B",
+          "lat": 32.44927,
+          "lon": -114.78966
+        },
+        {
+          "nombre": "Av. México B y Calle 4",
+          "lat": 32.45015,
+          "lon": -114.79266
+        },
+        {
+          "nombre": "Av. Mérida y Av. México B",
+          "lat": 32.45079,
+          "lon": -114.79566
+        },
+        {
+          "nombre": "Calle Pesqueira y Av. Mérida",
+          "lat": 32.45167,
+          "lon": -114.79882
+        },
+        {
+          "nombre": "Av. Mérida y Calle Yocupicio",
+          "lat": 32.45256,
+          "lon": -114.80182
+        },
+        {
+          "nombre": "Calzada Monterrey y Av. Enrique Estrada",
+          "lat": 32.45383,
+          "lon": -114.80482
+        },
+        {
+          "nombre": "Calzada Monterrey y Av. Roberto Fierro",
+          "lat": 32.45636,
+          "lon": -114.80377
+        },
+        {
+          "nombre": "Calzada Monterrey y Av. Emilio Portes Gil",
+          "lat": 32.45902,
+          "lon": -114.80272
+        },
+        {
+          "nombre": "Calzada Monterrey y Av. Pascual Ortiz Rubio",
+          "lat": 32.46155,
+          "lon": -114.80167
+        },
+        {
+          "nombre": "Calle Querétaro y Calzada Monterrey",
+          "lat": 32.46408,
+          "lon": -114.80062
+        },
+        {
+          "nombre": "Calzada Monterrey y Av. Durango",
+          "lat": 32.46674,
+          "lon": -114.79957
+        },
+        {
+          "nombre": "Calzada Constitución y Av. Río Mayo",
+          "lat": 32.46927,
+          "lon": -114.79852
+        },
+        {
+          "nombre": "Calzada Constitución y Av. Sonora",
+          "lat": 32.46978,
+          "lon": -114.79551
+        },
+        {
+          "nombre": "Av. Guerrero",
+          "lat": 32.47028,
+          "lon": -114.79221
+        },
+        {
+          "nombre": "Av. Libertad y Av. Guerrero",
+          "lat": 32.47066,
+          "lon": -114.78936
+        },
+        {
+          "nombre": "Calle 2 y Av. Venustiano Carranza",
+          "lat": 32.47155,
+          "lon": -114.78636
+        },
+        {
+          "nombre": "Calle 2 y Av. 5 de Mayo",
+          "lat": 32.47421,
+          "lon": -114.78531
+        },
+        {
+          "nombre": "Calle 2 y Av. Félix Contreras",
+          "lat": 32.47636,
+          "lon": -114.78396
+        },
+        {
+          "nombre": "Calle 2 y Av. Kino",
+          "lat": 32.47939,
+          "lon": -114.78306
+        },
+        {
+          "nombre": "Calle 2 y Av. Madero",
+          "lat": 32.48205,
+          "lon": -114.78201
+        },
+        {
+          "nombre": "Calle 4 y Av. Madero",
+          "lat": 32.48129,
+          "lon": -114.77946
+        },
+        {
+          "nombre": "Calle 6 y Av. Madero",
+          "lat": 32.48041,
+          "lon": -114.77676
+        },
+        {
+          "nombre": "Calle 4 y Av. Madero",
+          "lat": 32.48129,
+          "lon": -114.77946
+        },
+        {
+          "nombre": "Calle 2 y Av. Madero",
+          "lat": 32.48205,
+          "lon": -114.78201
+        }
       ]
     }
   ]

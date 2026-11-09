@@ -37,8 +37,8 @@ $A -s $W shell am start -n com.ralenday.sereno/com.ralenday.sereno.wear.MainActi
 
 - **GPS del emulador**: `adb -s $P emu geo fix <lon> <lat>` (¡longitud primero!).
   - Zócalo CDMX: `-99.1332 19.4326` · Polanco: `-99.1910 19.4330`
-  - Centro SLRC: `-114.7790 32.4840` · Centro Mexicali: `-115.4920 32.6640`
-- **Ciudad simulada**: en la app, chips "San Luis Río Colorado / Mexicali / Ciudad de México" ponen tu
+  - Centro SLRC: `-114.7790 32.4840`
+- **Ciudad simulada**: en la app, chips "San Luis Río Colorado / Ciudad de México" ponen tu
   ubicación en el centro de esa ciudad (ignora el GPS).
 - **Simular caminata**: con una navegación activa, botón "Simular caminata" en el teléfono: recorre la
   ruta ~8x más rápido que caminando (incluye los tramos en transporte) e ignora el GPS real.
@@ -50,7 +50,7 @@ $A -s $W shell am start -n com.ralenday.sereno/com.ralenday.sereno.wear.MainActi
 3. Tocar una ruta en el reloj → el reloj salta a la flecha de navegación.
 4. En el teléfono: "Simular caminata" → el reloj vibra en cada giro, avisa "Prepárate: bajas en …" y "Llegaste".
 5. En el reloj: SOS (mantener presionado) → alerta en ambos.
-6. Cambiar a San Luis R.C. → se ve el caso de ciudad chica sin datos de transporte (caminar/taxi).
+6. Cambiar a San Luis R.C. → se ven los hoteles y las 4 rutas locales de combi ($14 general / $7 descuento) y taxi por zona (desde $45).
 
 ## Verificar el enlace
 
