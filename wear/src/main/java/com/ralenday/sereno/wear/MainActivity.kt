@@ -1,31 +1,25 @@
 package com.ralenday.sereno.wear
 
-import android.content.Context
-import android.hardware.Sensor
-import android.hardware.SensorEvent
-import android.hardware.SensorEventListener
-import android.hardware.SensorManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -57,9 +51,6 @@ import androidx.compose.ui.unit.sp
 import androidx.wear.compose.foundation.lazy.TransformingLazyColumn
 import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
 import androidx.wear.compose.material3.AppScaffold
-import androidx.wear.compose.material3.Button
-import androidx.wear.compose.material3.ButtonDefaults
-import androidx.wear.compose.material3.CompactButton
 import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
@@ -83,14 +74,18 @@ import kotlin.math.cos
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
-// Paleta suave y descansada para la vista (sin tonos neón ni rojos intensos)
-val FondoPizarra = Color(0xFF161D24)
-val SuperficiePizarra = Color(0xFF222D38)
-val Salvia = Color(0xFF68B69F)
-val AzulSereno = Color(0xFF72A8C9)
-val ArenaSuave = Color(0xFFD8B98A)
-val TextoClaro = Color(0xFFE6EDF3)
-val TextoTenue = Color(0xFF9FB0C2)
+// Paleta suave pero con alto contraste en botones para lectura clara en el reloj
+val FondoPizarra = Color(0xFF12181F)
+val SuperficieBoton = Color(0xFF243240)
+val SuperficieActiva = Color(0xFF1F4B3F)
+val BordeBoton = Color(0xFF4B657C)
+val BordeActivo = Color(0xFF68B69F)
+val Salvia = Color(0xFF6EE7B7)
+val AzulSereno = Color(0xFF7DD3FC)
+val ArenaSuave = Color(0xFFFCD34D)
+val TextoClaro = Color(0xFFF8FAFC)
+val TextoSubtitulo = Color(0xFFCBD5E1)
+val TextoTenue = Color(0xFF94A3B8)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -100,41 +95,33 @@ class MainActivity : ComponentActivity() {
 }
 
 /**
- * Escucha la brújula/sensor de rotación del reloj (o emulador en la laptop) y permite sumar un
- * giro manual en pantalla para simular cambios de orientación con el mouse.
+ * Calcula los grados de la flecha en el reloj usando en tiempo real la brújula del celular
+ * (`e.mapa?.rumbo` y `e.nav?.flechaGrados`) más cualquier ajuste manual (`↺` / `↻`).
  */
-@Composable
-fun rememberBrujulaReloj(context: Context): Pair<Float?, (Float) -> Unit> {
-    var rumboSensor by remember { mutableStateOf<Float?>(null) }
-    var ajusteManual by remember { mutableFloatStateOf(0f) }
-
-    DisposableEffect(context) {
-        val sm = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
-        val sensor = sm?.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
-        val matriz = FloatArray(9)
-        val orientacion = FloatArray(3)
-        val listener = object : SensorEventListener {
-            override fun onSensorChanged(ev: SensorEvent) {
-                SensorManager.getRotationMatrixFromVector(matriz, ev.values)
-                SensorManager.getOrientation(matriz, orientacion)
-                val grados = ((Math.toDegrees(orientacion[0].toDouble()) + 360.0) % 360.0).toFloat()
-                rumboSensor = grados
-            }
-            override fun onAccuracyChanged(s: Sensor?, accuracy: Int) {}
+fun calcularGradosFlecha(e: EstadoReloj, ajusteManual: Float): Int {
+    val n = e.nav
+    val rumboCelular = (e.mapa?.rumbo ?: 0).toFloat()
+    val rumboEfectivo = (((rumboCelular + ajusteManual) % 360f) + 360f) % 360f
+    if (n != null) {
+        if (n.giro == Giro.LLEGADA) return 0
+        return if (ajusteManual != 0f) {
+            Geo.diferenciaAngulo(n.rumboObjetivo.toDouble(), rumboEfectivo.toDouble())
+        } else {
+            n.flechaGrados
         }
-        if (sm != null && sensor != null) {
-            sm.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_UI)
-        }
-        onDispose { sm?.unregisterListener(listener) }
     }
-
-    val rumboEfectivo = if (rumboSensor != null || ajusteManual != 0f) {
-        (((rumboSensor ?: 0f) + ajusteManual) % 360f + 360f) % 360f
-    } else null
-
-    return rumboEfectivo to { delta ->
-        ajusteManual = if (delta == 0f) 0f else ((ajusteManual + delta) % 360f + 360f) % 360f
+    val yo = e.mapa?.yo
+    val dest = e.mapa?.destino
+    if (yo != null && dest != null) {
+        val rumboMeta = Geo.rumbo(yo, dest)
+        return Geo.diferenciaAngulo(rumboMeta, rumboEfectivo.toDouble())
     }
+    return rumboEfectivo.roundToInt()
+}
+
+fun calcularRumboEfectivo(e: EstadoReloj, ajusteManual: Float): Float {
+    val rumboCelular = (e.mapa?.rumbo ?: 0).toFloat()
+    return (((rumboCelular + ajusteManual) % 360f) + 360f) % 360f
 }
 
 @Composable
@@ -148,7 +135,10 @@ fun AppReloj() {
     val scope = rememberCoroutineScope()
     val nav = rememberSwipeDismissableNavController()
     val e = estado ?: EstadoReloj()
-    val (rumboLocal, girarBrujula) = rememberBrujulaReloj(context)
+    var ajusteManual by remember { mutableFloatStateOf(0f) }
+    val girarBrujula: (Float) -> Unit = { delta ->
+        ajusteManual = if (delta == 0f) 0f else ((ajusteManual + delta) % 360f + 360f) % 360f
+    }
     val enviar: (Comando) -> Unit = { c -> vib.toque(); scope.launch { enlace.enviar(c) } }
 
     VibracionesNavegacion(e.nav, vib)
@@ -184,7 +174,7 @@ fun AppReloj() {
             SwipeDismissableNavHost(navController = nav, startDestination = "inicio") {
                 val actual = { estadoState.value ?: EstadoReloj() }
                 composable("inicio") {
-                    PantallaInicio(actual(), conectadoState.value, enviar, nav::navigate)
+                    PantallaInicio(actual(), conectadoState.value, ajusteManual, enviar, nav::navigate)
                 }
                 composable("hoteles") {
                     PantallaHoteles(actual(), enviar) { nav.navigate("rutas") }
@@ -202,7 +192,7 @@ fun AppReloj() {
                         e = actual(),
                         enviar = enviar,
                         conectado = conectadoState.value,
-                        rumboLocal = rumboLocal,
+                        ajusteManual = ajusteManual,
                         girarBrujula = girarBrujula,
                         irRutas = { nav.navigate("rutas") },
                         irHoteles = { nav.navigate("hoteles") },
@@ -211,7 +201,7 @@ fun AppReloj() {
                 composable("mapa") {
                     PantallaMapaReloj(
                         e = actual(),
-                        rumboLocal = rumboLocal,
+                        ajusteManual = ajusteManual,
                         girarBrujula = girarBrujula,
                     )
                 }
@@ -240,51 +230,83 @@ fun VibracionesNavegacion(n: NavActual?, vib: Vibracion) {
 }
 
 @Composable
-fun PantallaInicio(e: EstadoReloj, conectado: Boolean, enviar: (Comando) -> Unit, ir: (String) -> Unit) {
+fun PantallaInicio(
+    e: EstadoReloj,
+    conectado: Boolean,
+    ajusteManual: Float,
+    enviar: (Comando) -> Unit,
+    ir: (String) -> Unit,
+) {
     val lista = rememberTransformingLazyColumnState()
+    val gradosFlecha = calcularGradosFlecha(e, ajusteManual)
+    val rumboEfectivo = calcularRumboEfectivo(e, ajusteManual).roundToInt()
+
     ScreenScaffold(scrollState = lista) { padding ->
         TransformingLazyColumn(state = lista, contentPadding = padding) {
-            item { ListHeader { Text("Sereno", color = Salvia, fontWeight = FontWeight.Bold) } }
+            item {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.padding(top = 2.dp),
+                ) {
+                    Flecha(gradosFlecha, Modifier.size(22.dp))
+                    Text("Sereno", color = Salvia, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    Text("🧭 ${rumboEfectivo}°", color = TextoSubtitulo, fontSize = 11.sp)
+                }
+            }
             item {
                 Text(
                     (if (conectado) "● " else "○ ") + e.ciudad.ifBlank { "Ubicación GPS" } + if (!conectado) " · sin enlace" else "",
-                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 11.sp,
                     color = if (conectado) Salvia else ArenaSuave,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
-            if (e.buscando) item { Text("Actualizando…", color = TextoTenue, style = MaterialTheme.typography.bodySmall) }
+            if (e.buscando) {
+                item { Text("Actualizando…", color = TextoSubtitulo, fontSize = 12.sp) }
+            }
             e.nav?.let { n ->
                 item {
                     Boton(
-                        "🧭 En ruta · ${Geo.textoDistancia(n.metrosAlGiro)}",
-                        "${textoGiro(n.giro)} en ${n.calle}",
-                        Salvia.copy(alpha = 0.28f),
+                        titulo = "🧭 En ruta · ${Geo.textoDistancia(n.metrosAlGiro)}",
+                        sub = "${textoGiro(n.giro)} en ${n.calle}",
+                        destacado = true,
                     ) { ir("nav") }
                 }
             }
             item {
                 Boton(
-                    "🏨 Hoteles cerca",
-                    if (e.hoteles.isEmpty()) "Buscar desde mi ubicación" else "${e.hoteles.size} opciones disponibles",
+                    titulo = "🏨 Hoteles cerca",
+                    sub = if (e.hoteles.isEmpty()) "Buscar desde mi ubicación" else "${e.hoteles.size} opciones disponibles",
                 ) {
                     if (e.hoteles.isEmpty()) enviar(Comando(TipoComando.BUSCAR_HOTELES, "hotel barato cerca"))
                     ir("hoteles")
                 }
             }
             if (e.rutas.isNotEmpty()) {
-                item { Boton("🚌 Rutas (${e.rutas.size})", e.mapa?.destinoNombre ?: "Opciones de llegada") { ir("rutas") } }
+                item {
+                    Boton(
+                        titulo = "🚌 Rutas (${e.rutas.size})",
+                        sub = e.mapa?.destinoNombre?.ifBlank { "Opciones de llegada" } ?: "Opciones de llegada",
+                    ) { ir("rutas") }
+                }
             }
             if (e.mapa != null || e.hoteles.isNotEmpty()) {
                 item {
                     Boton(
-                        "🗺 Croquis del área",
-                        if (e.mapa?.destinoNombre?.isNotBlank() == true) e.mapa!!.destinoNombre else "Ubicación, hoteles y ruta",
+                        titulo = "🗺 Croquis y brújula",
+                        sub = if (e.mapa?.destinoNombre?.isNotBlank() == true) e.mapa!!.destinoNombre else "Ver mapa y flecha en vivo",
                     ) { ir("mapa") }
                 }
             }
-            item { CompactButton(onClick = { ir("ayuda") }, label = { Text("Guía de vibración", color = TextoTenue) }) }
+            item {
+                BotonPastilla(
+                    texto = "Guía de vibración",
+                    colorTexto = TextoClaro,
+                    onClick = { ir("ayuda") },
+                )
+            }
         }
     }
 }
@@ -294,34 +316,40 @@ fun PantallaHoteles(e: EstadoReloj, enviar: (Comando) -> Unit, verRutas: () -> U
     val lista = rememberTransformingLazyColumnState()
     ScreenScaffold(scrollState = lista) { padding ->
         TransformingLazyColumn(state = lista, contentPadding = padding) {
-            item { ListHeader { Text("Alojamiento", color = TextoClaro) } }
+            item { ListHeader { Text("Alojamiento", color = TextoClaro, fontWeight = FontWeight.Bold) } }
             item {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    listOf(Orden.DISTANCIA to "Cerca", Orden.PRECIO to "$", Orden.VALORACION to "★").forEach { (o, t) ->
-                        CompactButton(
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    listOf(Orden.DISTANCIA to "Cerca", Orden.PRECIO to "$ Precio", Orden.VALORACION to "★ Top").forEach { (o, t) ->
+                        val activo = e.orden == o
+                        BotonPastilla(
+                            texto = t,
+                            activo = activo,
+                            colorTexto = if (activo) Salvia else TextoClaro,
                             onClick = { enviar(Comando(TipoComando.ORDENAR, o.name)) },
-                            label = { Text(t, color = if (e.orden == o) Salvia else TextoClaro) },
                         )
                     }
                 }
             }
-            if (e.buscando) item { Text("Buscando cerca…", color = TextoTenue) }
+            if (e.buscando) item { Text("Buscando cerca…", color = TextoSubtitulo, fontSize = 12.sp) }
             if (!e.buscando && e.hoteles.isEmpty()) {
                 item {
                     Text(
                         "Sin resultados aún. Toca abajo para buscar cerca de ti.",
                         textAlign = TextAlign.Center,
-                        color = TextoTenue,
-                        style = MaterialTheme.typography.bodySmall,
+                        color = TextoSubtitulo,
+                        fontSize = 12.sp,
                     )
                 }
             }
             e.hoteles.forEach { h ->
                 item(key = h.id) {
                     Boton(
-                        h.nombre,
-                        "$${h.precioEstimado} · ${Geo.textoDistancia(h.distanciaM)}" + if (h.estrellas > 0) " · ${h.estrellas}★" else "",
-                        if (h.id == e.hotelElegido) Salvia.copy(alpha = 0.28f) else null,
+                        titulo = h.nombre,
+                        sub = "$${h.precioEstimado} · ${Geo.textoDistancia(h.distanciaM)}" + if (h.estrellas > 0) " · ${h.estrellas}★" else "",
+                        destacado = h.id == e.hotelElegido,
                     ) {
                         enviar(Comando(TipoComando.ELEGIR_HOTEL, h.id))
                         verRutas()
@@ -329,9 +357,10 @@ fun PantallaHoteles(e: EstadoReloj, enviar: (Comando) -> Unit, verRutas: () -> U
                 }
             }
             item {
-                CompactButton(
+                BotonPastilla(
+                    texto = "🔄 Actualizar cercanos",
+                    colorTexto = AzulSereno,
                     onClick = { enviar(Comando(TipoComando.BUSCAR_HOTELES, "hotel cerca")) },
-                    label = { Text("🔄 Actualizar cercanos", color = AzulSereno) },
                 )
             }
         }
@@ -355,17 +384,27 @@ fun PantallaRutas(
                         hotel?.nombre ?: "Rutas",
                         maxLines = 2,
                         color = TextoClaro,
+                        fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center,
                     )
                 }
             }
-            if (e.buscando) item { Text("Calculando opciones…", color = TextoTenue) }
+            if (e.buscando) item { Text("Calculando opciones…", color = TextoSubtitulo, fontSize = 12.sp) }
             item {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     if (e.mapa != null) {
-                        CompactButton(onClick = verMapa, label = { Text("🗺 Croquis", color = Salvia) })
+                        BotonPastilla(
+                            texto = "🗺 Croquis",
+                            activo = true,
+                            colorTexto = Salvia,
+                            onClick = verMapa,
+                        )
                     }
-                    CompactButton(onClick = irHoteles, label = { Text("🏨 Hoteles", color = AzulSereno) })
+                    BotonPastilla(
+                        texto = "🏨 Hoteles",
+                        colorTexto = AzulSereno,
+                        onClick = irHoteles,
+                    )
                 }
             }
             e.rutas.forEachIndexed { i, r ->
@@ -380,8 +419,8 @@ fun PantallaRutas(
                     }
                     val total = r.costo + (hotel?.precioEstimado ?: 0)
                     Boton(
-                        "${r.minutos} min · $${r.costo.roundToInt()}",
-                        "$resumen\nTotal+noche ≈ $${total.roundToInt()}",
+                        titulo = "${r.minutos} min · $${r.costo.roundToInt()}",
+                        sub = "$resumen\nTotal+noche ≈ $${total.roundToInt()}",
                     ) {
                         enviar(Comando(TipoComando.ELEGIR_RUTA, i.toString()))
                         enviar(Comando(TipoComando.INICIAR_NAV, i.toString()))
@@ -397,7 +436,7 @@ fun PantallaNav(
     e: EstadoReloj,
     enviar: (Comando) -> Unit,
     conectado: Boolean,
-    rumboLocal: Float?,
+    ajusteManual: Float,
     girarBrujula: (Float) -> Unit,
     irRutas: () -> Unit,
     irHoteles: () -> Unit,
@@ -413,7 +452,7 @@ fun PantallaNav(
             },
             contentAlignment = Alignment.Center,
         ) {
-            Text(Geo.textoDistancia(n.metrosAlGiro), color = TextoTenue, fontSize = 15.sp)
+            Text(Geo.textoDistancia(n.metrosAlGiro), color = TextoClaro, fontSize = 16.sp, fontWeight = FontWeight.Bold)
         }
         return
     }
@@ -422,32 +461,29 @@ fun PantallaNav(
         TransformingLazyColumn(state = lista, contentPadding = padding) {
             if (n == null) {
                 val info = e.alerta?.takeIf { it.tipo == TipoAlerta.INFO }?.texto
-                item { ListHeader { Text(if (info != null) "✓ Llegaste" else "Sin ruta activa", color = Salvia) } }
+                item { ListHeader { Text(if (info != null) "✓ Llegaste" else "Sin ruta activa", color = Salvia, fontWeight = FontWeight.Bold) } }
                 item {
                     Text(
                         info ?: "Elige un hotel y una ruta para ver el croquis y la guía paso a paso.",
                         textAlign = TextAlign.Center,
-                        color = TextoTenue,
-                        style = MaterialTheme.typography.bodySmall,
+                        color = TextoSubtitulo,
+                        fontSize = 12.sp,
                     )
                 }
                 item {
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        CompactButton(onClick = irHoteles, label = { Text("🏨 Hoteles", color = Salvia) })
+                        BotonPastilla(texto = "🏨 Hoteles", activo = true, colorTexto = Salvia, onClick = irHoteles)
                         if (e.rutas.isNotEmpty()) {
-                            CompactButton(onClick = irRutas, label = { Text("🚌 Rutas", color = AzulSereno) })
+                            BotonPastilla(texto = "🚌 Rutas", colorTexto = AzulSereno, onClick = irRutas)
                         }
                     }
                 }
                 return@TransformingLazyColumn
             }
 
-            // Si el reloj tiene lectura de brújula local (sensor del emulador o giro interactivo), orienta la flecha con ella
-            val gradosFlecha = when {
-                n.giro == Giro.LLEGADA -> 0
-                rumboLocal != null -> Geo.diferenciaAngulo(n.rumboObjetivo.toDouble(), rumboLocal.toDouble())
-                else -> n.flechaGrados
-            }
+            // Orientamos la flecha con la brújula en vivo enviada desde el celular (+ ajuste manual opcional)
+            val gradosFlecha = calcularGradosFlecha(e, ajusteManual)
+            val rumboEfectivo = calcularRumboEfectivo(e, ajusteManual)
 
             // 1) Encabezado compacto: Flecha + Distancia + Calle
             item {
@@ -469,7 +505,8 @@ fun PantallaNav(
                         )
                         Text(
                             "${textoGiro(n.giro)} · ${n.calle}",
-                            fontSize = 11.sp,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
                             color = Salvia,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -483,7 +520,7 @@ fun PantallaNav(
                 CroquisRutaInteractivo(
                     e = e,
                     gradosFlecha = gradosFlecha,
-                    rumboLocal = rumboLocal,
+                    rumboMapa = rumboEfectivo,
                     vistaCompleta = vistaCompleta,
                     alCambiarVista = { vistaCompleta = !vistaCompleta },
                     alGirarBrujula = girarBrujula,
@@ -497,64 +534,73 @@ fun PantallaNav(
                         color = ArenaSuave,
                         textAlign = TextAlign.Center,
                         fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
             }
 
-            // 3) Controles rápidos sin salir de la navegación (Simular, Brújula laptop, Rutas, Detener)
+            // 3) Controles rápidos claros y bien legibles (Simular, ajuste brújula, Rutas, Detener)
             item {
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(5.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    CompactButton(
+                    BotonPastilla(
+                        texto = "↺",
+                        colorTexto = TextoClaro,
                         onClick = { girarBrujula(-30f) },
-                        label = { Text("↺", color = TextoClaro) },
                     )
-                    CompactButton(
+                    BotonPastilla(
+                        texto = if (n.simulando) "⏸ Pausa" else "▶ Simular",
+                        activo = !n.simulando,
+                        colorTexto = if (n.simulando) ArenaSuave else Salvia,
                         onClick = { enviar(Comando(TipoComando.SIMULAR_NAV)) },
-                        label = {
-                            Text(
-                                if (n.simulando) "⏸ Pausa" else "▶ Avance",
-                                color = if (n.simulando) ArenaSuave else Salvia,
-                            )
-                        },
                     )
-                    CompactButton(
+                    BotonPastilla(
+                        texto = "↻",
+                        colorTexto = TextoClaro,
                         onClick = { girarBrujula(30f) },
-                        label = { Text("↻", color = TextoClaro) },
                     )
                 }
             }
 
             item {
                 Text(
-                    "Faltan ${Geo.textoDistancia(n.metrosRestantes)} (~${n.minutosRestantes} min)" +
-                        (rumboLocal?.let { " · 🧭 ${it.roundToInt()}°" } ?: "") +
+                    "Faltan ${Geo.textoDistancia(n.metrosRestantes)} (~${n.minutosRestantes} min) · 🧭 ${rumboEfectivo.roundToInt()}°" +
                         if (!conectado) "\n(sin enlace)" else "",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = TextoTenue,
+                    fontSize = 11.sp,
+                    color = TextoSubtitulo,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
 
             item {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    CompactButton(onClick = irRutas, label = { Text("⇄ Ruta", color = AzulSereno) })
-                    CompactButton(onClick = irHoteles, label = { Text("🏨 Hotel", color = TextoClaro) })
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    BotonPastilla(
+                        texto = "⇄ Ruta",
+                        colorTexto = AzulSereno,
+                        onClick = irRutas,
+                    )
+                    BotonPastilla(
+                        texto = "🏨 Hotel",
+                        colorTexto = TextoClaro,
+                        onClick = irHoteles,
+                    )
                 }
             }
             item {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    CompactButton(
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    BotonPastilla(
+                        texto = "Vibración",
+                        colorTexto = TextoSubtitulo,
                         onClick = { enviar(Comando(TipoComando.SOLO_VIBRACION)) },
-                        label = { Text("Modo discreto", color = TextoTenue) },
                     )
-                    CompactButton(
+                    BotonPastilla(
+                        texto = "Detener",
+                        colorTexto = ArenaSuave,
                         onClick = { enviar(Comando(TipoComando.DETENER_NAV)) },
-                        label = { Text("Detener", color = ArenaSuave) },
                     )
                 }
             }
@@ -564,16 +610,16 @@ fun PantallaNav(
 
 /**
  * Pequeño croquis de la ruta integrado en la pantalla del reloj:
+ * - Usa la brújula del celular en tiempo real (`rumboMapa`) para orientar el croquis y la flecha.
  * - En modo "Cerca" centra el croquis en tu posición actual (`yo`) y muestra claramente por qué tramo
  *   vas, dónde está el siguiente giro y una flecha indicando hacia dónde dirigirte.
  * - En modo "Total" encuadra toda la ruta de principio a fin.
- * - Permite arrastrar horizontalmente o usar ↺/↻ para simular la brújula del reloj en la laptop.
  */
 @Composable
 fun CroquisRutaInteractivo(
     e: EstadoReloj,
     gradosFlecha: Int,
-    rumboLocal: Float?,
+    rumboMapa: Float,
     vistaCompleta: Boolean,
     alCambiarVista: () -> Unit,
     alGirarBrujula: (Float) -> Unit,
@@ -596,7 +642,8 @@ fun CroquisRutaInteractivo(
             .height(112.dp)
             .padding(horizontal = 6.dp)
             .clip(RoundedCornerShape(16.dp))
-            .background(SuperficiePizarra)
+            .background(SuperficieBoton)
+            .border(1.dp, BordeBoton, RoundedCornerShape(16.dp))
             .pointerInput(vistaCompleta) {
                 detectTapGestures(
                     onTap = { alCambiarVista() },
@@ -612,14 +659,13 @@ fun CroquisRutaInteractivo(
         contentAlignment = Alignment.Center,
     ) {
         if (puntos.isEmpty()) {
-            Text("Sin croquis disponible", fontSize = 10.sp, color = TextoTenue)
+            Text("Sin croquis disponible", fontSize = 11.sp, color = TextoSubtitulo)
             return@Box
         }
 
         val yo = m?.yo ?: puntos.first()
         val pGiro = n?.puntoGiro
 
-        // En modo cercano, encuadramos alrededor de `yo` y del próximo giro; en modo completo, toda la ruta
         val puntosEncuadre = if (!vistaCompleta && m?.yo != null) {
             buildList {
                 add(yo)
@@ -641,7 +687,7 @@ fun CroquisRutaInteractivo(
         val spanLon = ((maxLon - minLon) * cosLat).coerceAtLeast(spanMin)
         val spanLat = (maxLat - minLat).coerceAtLeast(spanMin)
         val span = maxOf(spanLon, spanLat) * (if (vistaCompleta) 1.55 else 2.1)
-        val rotacionMapa = -(rumboLocal ?: 0f)
+        val rotacionMapa = -rumboMapa
 
         Canvas(Modifier.fillMaxSize()) {
             val w = size.width
@@ -654,18 +700,15 @@ fun CroquisRutaInteractivo(
                 return Offset(x, y)
             }
 
-            // Anillo de referencia circular suave
             val radioRef = minOf(w, h) * 0.42f
             drawCircle(
-                color = Color(0xFF2E3C4A),
+                color = Color(0xFF334659),
                 radius = radioRef,
                 center = Offset(w / 2f, h / 2f),
                 style = Stroke(width = 1.5f),
             )
 
-            // Rotamos el croquis según la brújula del reloj para que "de frente" coincida con tu mirada
             rotate(degrees = rotacionMapa, pivot = Offset(w / 2f, h / 2f)) {
-                // 1) Trazos de la ruta (caminar en arena punteado, transporte en azul sereno)
                 m?.trazos?.forEach { tr ->
                     if (tr.puntos.size >= 2) {
                         val path = Path().apply {
@@ -678,7 +721,7 @@ fun CroquisRutaInteractivo(
                         }
                         val colorTramo = when (tr.modo) {
                             Modo.CAMINAR -> ArenaSuave
-                            Modo.TAXI -> Color(0xFFB392F0)
+                            Modo.TAXI -> Color(0xFFC4B5FD)
                             else -> AzulSereno
                         }
                         val efecto = if (tr.modo == Modo.CAMINAR) PathEffect.dashPathEffect(floatArrayOf(7f, 5f)) else null
@@ -695,29 +738,26 @@ fun CroquisRutaInteractivo(
                     }
                 }
 
-                // 2) Línea guía directa hacia el próximo giro + marcador del giro
                 if (m?.yo != null && pGiro != null) {
                     val oYo = aXY(m.yo!!)
                     val oGiro = aXY(pGiro)
                     drawLine(
-                        color = Salvia.copy(alpha = 0.55f),
+                        color = Salvia.copy(alpha = 0.65f),
                         start = oYo,
                         end = oGiro,
                         strokeWidth = 2.5f,
                         pathEffect = PathEffect.dashPathEffect(floatArrayOf(5f, 4f)),
                     )
-                    drawCircle(Color(0xFF161D24), radius = 6.5f, center = oGiro)
+                    drawCircle(Color(0xFF12181F), radius = 6.5f, center = oGiro)
                     drawCircle(ArenaSuave, radius = 4.5f, center = oGiro)
                 }
 
-                // 3) Destino final (verde salvia con borde claro)
                 m?.destino?.let { dest ->
                     val o = aXY(dest)
                     drawCircle(TextoClaro, radius = 7.5f, center = o)
                     drawCircle(Salvia, radius = 5.5f, center = o)
                 }
 
-                // 4) Tu posición actual (punto azul + halo)
                 m?.yo?.let { posYo ->
                     val o = aXY(posYo)
                     drawCircle(AzulSereno.copy(alpha = 0.28f), radius = 13f, center = o)
@@ -726,7 +766,7 @@ fun CroquisRutaInteractivo(
                 }
             }
 
-            // 5) Flecha direccional sobre tu posición indicando exactamente hacia dónde dirigirte
+            // Flecha direccional sobre tu posición indicando exactamente hacia dónde dirigirte
             m?.yo?.let { posYo ->
                 val centroYo = if (!vistaCompleta) Offset(w / 2f, h / 2f) else {
                     val sinRot = aXY(posYo)
@@ -739,9 +779,9 @@ fun CroquisRutaInteractivo(
                     )
                 }
                 rotate(degrees = gradosFlecha.toFloat(), pivot = centroYo) {
-                    val punta = Offset(centroYo.x, centroYo.y - 20f)
-                    val izq = Offset(centroYo.x - 6f, centroYo.y - 9f)
-                    val der = Offset(centroYo.x + 6f, centroYo.y - 9f)
+                    val punta = Offset(centroYo.x, centroYo.y - 21f)
+                    val izq = Offset(centroYo.x - 6.5f, centroYo.y - 9f)
+                    val der = Offset(centroYo.x + 6.5f, centroYo.y - 9f)
                     val flechaPath = Path().apply {
                         moveTo(punta.x, punta.y)
                         lineTo(der.x, der.y)
@@ -753,68 +793,86 @@ fun CroquisRutaInteractivo(
             }
         }
 
-        // Etiquetas sutiles en las esquinas del croquis
         Row(
             Modifier.fillMaxSize().padding(horizontal = 8.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Bottom,
         ) {
             Text(
-                if (vistaCompleta) "Vista: Ruta total" else "Vista: Tu tramo (toca)",
+                if (vistaCompleta) "Vista: Total" else "Vista: Cerca",
                 fontSize = 9.sp,
-                color = TextoTenue,
+                color = TextoSubtitulo,
             )
             Text(
-                "🔵Tú 🟡Giro 🟢Meta",
-                fontSize = 8.sp,
-                color = TextoTenue,
+                "🧭 ${rumboMapa.roundToInt()}°",
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+                color = Salvia,
             )
         }
     }
 }
 
-/** Pantalla dedicada del croquis a pantalla completa en el reloj. */
+/** Pantalla dedicada del croquis y brújula en el reloj. */
 @Composable
 fun PantallaMapaReloj(
     e: EstadoReloj,
-    rumboLocal: Float?,
+    ajusteManual: Float,
     girarBrujula: (Float) -> Unit,
 ) {
     var vistaCompleta by remember { mutableStateOf(true) }
-    val gradosFlecha = e.nav?.let { n ->
-        if (rumboLocal != null) Geo.diferenciaAngulo(n.rumboObjetivo.toDouble(), rumboLocal.toDouble())
-        else n.flechaGrados
-    } ?: 0
+    val gradosFlecha = calcularGradosFlecha(e, ajusteManual)
+    val rumboEfectivo = calcularRumboEfectivo(e, ajusteManual)
 
     Column(
-        Modifier.fillMaxSize().background(FondoPizarra).padding(vertical = 8.dp, horizontal = 8.dp),
+        Modifier.fillMaxSize().background(FondoPizarra).padding(vertical = 6.dp, horizontal = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween,
     ) {
-        Text(
-            e.mapa?.destinoNombre?.ifBlank { e.ciudad.ifBlank { "Croquis" } } ?: "Croquis",
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            color = Salvia,
-            maxLines = 1,
-        )
-        Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            Flecha(gradosFlecha, Modifier.size(18.dp))
+            Text(
+                e.mapa?.destinoNombre?.ifBlank { e.ciudad.ifBlank { "Croquis" } } ?: "Croquis",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = Salvia,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Box(Modifier.weight(1f).fillMaxWidth().padding(vertical = 2.dp), contentAlignment = Alignment.Center) {
             CroquisRutaInteractivo(
                 e = e,
                 gradosFlecha = gradosFlecha,
-                rumboLocal = rumboLocal,
+                rumboMapa = rumboEfectivo,
                 vistaCompleta = vistaCompleta,
                 alCambiarVista = { vistaCompleta = !vistaCompleta },
                 alGirarBrujula = girarBrujula,
             )
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            CompactButton(onClick = { girarBrujula(-30f) }, label = { Text("↺", color = TextoClaro) })
-            CompactButton(
-                onClick = { vistaCompleta = !vistaCompleta },
-                label = { Text(if (vistaCompleta) "Acercar" else "Alejar", color = Salvia) },
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            BotonPastilla(
+                texto = "↺",
+                colorTexto = TextoClaro,
+                onClick = { girarBrujula(-30f) },
             )
-            CompactButton(onClick = { girarBrujula(30f) }, label = { Text("↻", color = TextoClaro) })
+            BotonPastilla(
+                texto = if (vistaCompleta) "Acercar" else "Alejar",
+                activo = true,
+                colorTexto = Salvia,
+                onClick = { vistaCompleta = !vistaCompleta },
+            )
+            BotonPastilla(
+                texto = "↻",
+                colorTexto = TextoClaro,
+                onClick = { girarBrujula(30f) },
+            )
         }
     }
 }
@@ -829,11 +887,18 @@ fun PantallaAlerta(texto: String, pide: Boolean, tipo: TipoAlerta, ok: () -> Uni
                     Text(
                         if (tipo == TipoAlerta.RIESGO) "Aviso de zona" else "Sereno",
                         color = if (tipo == TipoAlerta.RIESGO) ArenaSuave else Salvia,
+                        fontWeight = FontWeight.Bold,
                     )
                 }
             }
-            item { Text(texto, textAlign = TextAlign.Center, color = TextoClaro) }
-            item { Boton(if (pide) "Estoy bien, continuar" else "Entendido", null, Salvia.copy(alpha = 0.35f)) { ok() } }
+            item { Text(texto, textAlign = TextAlign.Center, color = TextoClaro, fontSize = 13.sp) }
+            item {
+                Boton(
+                    titulo = if (pide) "Estoy bien, continuar" else "Entendido",
+                    sub = null,
+                    destacado = true,
+                ) { ok() }
+            }
         }
     }
 }
@@ -843,46 +908,91 @@ fun PantallaAyuda() {
     val lista = rememberTransformingLazyColumnState()
     ScreenScaffold(scrollState = lista) { padding ->
         TransformingLazyColumn(state = lista, contentPadding = padding) {
-            item { ListHeader { Text("Guía háptica", color = Salvia) } }
+            item { ListHeader { Text("Guía háptica", color = Salvia, fontWeight = FontWeight.Bold) } }
             listOf(
                 "Izquierda: 2 toques cortos",
                 "Derecha: 3 toques cortos",
                 "Sigue recto: 1 toque suave",
                 "Vuelta en U: 1 largo + 2 cortos",
                 "Llegada: 1 vibración larga",
+                "Brújula: usa el giro de tu celular",
                 "Croquis: toca para acercar/alejar",
-                "Brújula: usa ↺ / ↻ o arrastra",
                 "Modo discreto: doble toque para salir",
             ).forEach {
-                item { Text(it, color = TextoClaro, style = MaterialTheme.typography.bodySmall) }
+                item { Text(it, color = TextoClaro, fontSize = 12.sp) }
             }
         }
     }
 }
 
-// ---------- Componentes ----------
+// ---------- Botones de alto contraste y lectura clara en el reloj ----------
 
 @Composable
-fun Boton(titulo: String, sub: String?, fondo: Color? = null, onClick: () -> Unit) {
-    Button(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        colors = if (fondo != null) {
-            ButtonDefaults.buttonColors(
-                containerColor = fondo,
-                contentColor = TextoClaro,
-                secondaryContentColor = TextoTenue,
+fun Boton(
+    titulo: String,
+    sub: String?,
+    destacado: Boolean = false,
+    onClick: () -> Unit,
+) {
+    val fondo = if (destacado) SuperficieActiva else SuperficieBoton
+    val borde = if (destacado) BordeActivo else BordeBoton
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(fondo)
+            .border(1.dp, borde, RoundedCornerShape(18.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+    ) {
+        Text(
+            text = titulo,
+            color = TextoClaro,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        if (!sub.isNullOrBlank()) {
+            Text(
+                text = sub,
+                color = TextoSubtitulo,
+                fontSize = 11.sp,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 2.dp),
             )
-        } else {
-            ButtonDefaults.buttonColors(
-                containerColor = SuperficiePizarra,
-                contentColor = TextoClaro,
-                secondaryContentColor = TextoTenue,
-            )
-        },
-        label = { Text(titulo, maxLines = 2) },
-        secondaryLabel = sub?.let { { Text(it, maxLines = 3) } },
-    )
+        }
+    }
+}
+
+@Composable
+fun BotonPastilla(
+    texto: String,
+    activo: Boolean = false,
+    colorTexto: Color = TextoClaro,
+    onClick: () -> Unit,
+) {
+    val fondo = if (activo) SuperficieActiva else SuperficieBoton
+    val borde = if (activo) BordeActivo else BordeBoton
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(fondo)
+            .border(1.dp, borde, RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+    ) {
+        Text(
+            text = texto,
+            color = colorTexto,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            textAlign = TextAlign.Center,
+        )
+    }
 }
 
 @Composable
@@ -898,7 +1008,7 @@ fun Flecha(grados: Int, modifier: Modifier) {
             close()
         }
         drawPath(p, Salvia)
-        drawCircle(TextoClaro, radius = w * 0.07f, center = Offset(w / 2, h * 0.66f))
+        drawCircle(TextoClaro, radius = w * 0.08f, center = Offset(w / 2, h * 0.66f))
     }
 }
 

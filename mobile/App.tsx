@@ -1,4 +1,5 @@
 import * as Location from 'expo-location';
+import { Magnetometer } from 'expo-sensors';
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -115,6 +116,21 @@ export default function App() {
 
     let subPos: Location.LocationSubscription | null = null;
     let subHeading: Location.LocationSubscription | null = null;
+    let subMag: { remove: () => void } | null = null;
+    let ultimoHeadingNativo = 0;
+
+    try {
+      Magnetometer.setUpdateInterval(180);
+      subMag = Magnetometer.addListener((data) => {
+        if (Date.now() - ultimoHeadingNativo < 1500) return;
+        const { x, y } = data;
+        if (typeof x === 'number' && typeof y === 'number') {
+          let angulo = Math.atan2(y, x) * (180 / Math.PI);
+          angulo = (90 - angulo + 360) % 360;
+          motor.actualizarBrujula(angulo);
+        }
+      });
+    } catch {}
 
     void (async () => {
       try {
@@ -137,7 +153,10 @@ export default function App() {
         );
         subHeading = await Location.watchHeadingAsync((h) => {
           const rumbo = h.trueHeading >= 0 ? h.trueHeading : h.magHeading;
-          if (rumbo >= 0) motor.actualizarBrujula(rumbo);
+          if (rumbo >= 0) {
+            ultimoHeadingNativo = Date.now();
+            motor.actualizarBrujula(rumbo);
+          }
         });
       } catch {}
     })();
@@ -147,6 +166,7 @@ export default function App() {
       desuscribirEnlace();
       subPos?.remove();
       subHeading?.remove();
+      subMag?.remove();
       motor.detener();
     };
   }, [motor, obtenerGpsActual]);
@@ -232,6 +252,15 @@ function PantallaViaje({
   const rutaVisible =
     e.rutaActiva !== null ? e.rutas[e.rutaActiva] : e.rutas[e.rutaSeleccionada];
 
+  const gradosFlechaDestino = useMemo(() => {
+    if (e.nav) return e.nav.flechaGrados;
+    if (e.ubicacion && e.hotelElegido) {
+      const rumboMeta = Geo.rumbo(e.ubicacion, e.hotelElegido.punto);
+      return Geo.diferenciaAngulo(rumboMeta, e.rumboActual ?? 0);
+    }
+    return e.rumboActual ?? 0;
+  }, [e.nav, e.ubicacion, e.hotelElegido, e.rumboActual]);
+
   return (
     <ScrollView contentContainerStyle={estilos.listaContenido}>
       <View style={estilos.filaEncabezado}>
@@ -239,11 +268,12 @@ function PantallaViaje({
           <Text style={estilos.tituloPrincipal}>Sereno</Text>
           <Text style={estilos.subtitulo}>Compañero de viaje discreto</Text>
         </View>
-        {e.rumboActual !== null && (
-          <View style={estilos.insigniaBrujula}>
-            <Text style={estilos.textoInsigniaBrujula}>🧭 {e.rumboActual}°</Text>
-          </View>
-        )}
+        <View style={estilos.insigniaBrujula}>
+          <FlechaBrujulaSvg grados={gradosFlechaDestino} tam={20} color={SALVIA} />
+          <Text style={estilos.textoInsigniaBrujula}>
+            {e.rumboActual ?? 0}°{conectadoTextoBrujula(e)}
+          </Text>
+        </View>
       </View>
 
       {/* Selector de ubicación: GPS real del celular + San Luis Río Colorado + CDMX */}
@@ -343,7 +373,8 @@ function PantallaViaje({
       {(e.ubicacion || e.hoteles.length > 0 || e.rutas.length > 0) && (
         <TarjetaMapaTelefono
           ubicacion={e.ubicacion ?? e.ciudad?.centro ?? null}
-          rumboFlecha={e.nav?.flechaGrados ?? e.rumboActual ?? 0}
+          rumboFlecha={gradosFlechaDestino}
+          rumboBrujula={e.rumboActual ?? 0}
           hoteles={e.hoteles}
           hotelElegido={e.hotelElegido}
           ruta={rutaVisible ?? null}
@@ -354,18 +385,25 @@ function PantallaViaje({
       {e.nav && (
         <View style={estilos.tarjetaNav}>
           <View style={estilos.filaEncabezado}>
-            <Text style={estilos.tituloTarjeta}>🧭 Guiando hacia {e.nav.destino}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+              <View style={estilos.cajaFlechaNav}>
+                <FlechaBrujulaSvg grados={e.nav.flechaGrados} tam={34} color={SALVIA} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={estilos.tituloTarjeta}>Guiando hacia {e.nav.destino}</Text>
+                <Text style={estilos.textoPrincipal}>
+                  {e.nav.giro.toLowerCase().replace('_', ' ')} en{' '}
+                  <Text style={{ fontWeight: '700' }}>{e.nav.calle}</Text>
+                </Text>
+              </View>
+            </View>
             <Text style={estilos.insigniaDistancia}>{Geo.textoDistancia(e.nav.metrosAlGiro)}</Text>
           </View>
-          <Text style={estilos.textoPrincipal}>
-            {flechaTexto(e.nav.flechaGrados)}  { e.nav.giro.toLowerCase().replace('_', ' ') } en{' '}
-            <Text style={{ fontWeight: '700' }}>{e.nav.calle}</Text>
-          </Text>
           {e.nav.indicacion && (
             <Text style={{ color: AZUL_SERENO, fontWeight: '600' }}>{e.nav.indicacion}</Text>
           )}
           <Text style={estilos.textoSecundario}>
-            Faltan {Geo.textoDistancia(e.nav.metrosRestantes)} · ~{e.nav.minutosRestantes} min
+            Faltan {Geo.textoDistancia(e.nav.metrosRestantes)} · ~{e.nav.minutosRestantes} min · Brújula celular: {e.rumboActual ?? 0}°
           </Text>
           <View style={[estilos.filaBotones, { marginTop: 8 }]}>
             <Pressable
@@ -452,11 +490,48 @@ const TEXTOS_RIESGO: Record<string, string> = {
   DESCONOCIDO: TEXTO_SECUNDARIO,
 };
 
+function conectadoTextoBrujula(e: EstadoApp): string {
+  if (e.nav) return ' · hacia giro';
+  if (e.hotelElegido) return ' · hacia hotel';
+  return ' · brújula';
+}
+
+function FlechaBrujulaSvg({
+  grados,
+  tam = 24,
+  color = SALVIA,
+}: {
+  grados: number;
+  tam?: number;
+  color?: string;
+}) {
+  const c = tam / 2;
+  const rad = ((grados - 90) * Math.PI) / 180.0;
+  const px = c + Math.cos(rad) * (tam * 0.44);
+  const py = c + Math.sin(rad) * (tam * 0.44);
+  const izqX = c + Math.cos(rad - 2.45) * (tam * 0.36);
+  const izqY = c + Math.sin(rad - 2.45) * (tam * 0.36);
+  const colaX = c + Math.cos(rad + Math.PI) * (tam * 0.16);
+  const colaY = c + Math.sin(rad + Math.PI) * (tam * 0.16);
+  const derX = c + Math.cos(rad + 2.45) * (tam * 0.36);
+  const derY = c + Math.sin(rad + 2.45) * (tam * 0.36);
+  return (
+    <Svg width={tam} height={tam}>
+      <Polygon
+        points={`${px},${py} ${derX},${derY} ${colaX},${colaY} ${izqX},${izqY}`}
+        fill={color}
+      />
+      <Circle cx={c} cy={c} r={tam * 0.08} fill="#FFFFFF" />
+    </Svg>
+  );
+}
+
 // =================== MAPA OSM (TELÉFONO) ===================
 
 function TarjetaMapaTelefono({
   ubicacion,
   rumboFlecha,
+  rumboBrujula,
   hoteles,
   hotelElegido,
   ruta,
@@ -464,6 +539,7 @@ function TarjetaMapaTelefono({
 }: {
   ubicacion: Punto | null;
   rumboFlecha: number;
+  rumboBrujula: number;
   hoteles: Hotel[];
   hotelElegido: Hotel | null;
   ruta: Ruta | null;
@@ -541,7 +617,13 @@ function TarjetaMapaTelefono({
         <Text style={[estilos.tituloTarjeta, { flex: 1 }]}>
           {hotelElegido ? `Croquis hacia ${hotelElegido.nombre}` : 'Mapa de ubicación y hoteles'}
         </Text>
-        <View style={{ flexDirection: 'row', gap: 6 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <View style={estilos.insigniaMapaFlecha}>
+            <FlechaBrujulaSvg grados={rumboFlecha} tam={18} color={SALVIA} />
+            <Text style={{ fontSize: 11, fontWeight: '700', color: TEXTO_PRINCIPAL }}>
+              {Math.round(rumboBrujula)}°
+            </Text>
+          </View>
           <Pressable
             style={estilos.botonZoom}
             onPress={() => setZoomAjuste((prev) => Math.max(-3, prev - 1))}
@@ -1056,12 +1138,36 @@ const estilos = StyleSheet.create({
     fontSize: 11,
   },
   insigniaBrujula: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     backgroundColor: SALVIA_FONDO,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: '#B8DFD6',
+  },
+  insigniaMapaFlecha: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: SUPERFICIE_SUAVE,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: BORDE,
+  },
+  cajaFlechaNav: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#A9D6CB',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   textoInsigniaBrujula: {
     color: SALVIA,

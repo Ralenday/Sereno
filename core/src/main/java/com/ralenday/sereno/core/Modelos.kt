@@ -98,6 +98,8 @@ data class MapaReloj(
     val destino: Punto?,
     val destinoNombre: String = "",
     val trazos: List<TrazoMapa> = emptyList(),
+    /** Rumbo actual de la brújula del teléfono (0..359°). */
+    val rumbo: Int = 0,
 )
 
 data class EstadoReloj(
@@ -249,9 +251,11 @@ private fun MapaReloj.aJson() = JSONObject().apply {
     put("yo", yo?.aJson() ?: JSONObject.NULL); put("dest", destino?.aJson() ?: JSONObject.NULL)
     put("destN", destinoNombre)
     put("tr", JSONArray(trazos.map { JSONObject().put("m", it.modo.name).put("p", Geo.codificarPolilinea(it.puntos)) }))
+    put("rumbo", rumbo)
 }
 
 private fun JSONObject.aMapa() = MapaReloj(
     yo = punto("yo"), destino = punto("dest"), destinoNombre = optString("destN"),
     trazos = optJSONArray("tr")?.objetos()?.map { TrazoMapa(Modo.valueOf(it.getString("m")), Geo.decodificarPolilinea(it.getString("p"))) } ?: emptyList(),
+    rumbo = optInt("rumbo", 0),
 )

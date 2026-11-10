@@ -1,6 +1,6 @@
 # Sereno — Compañero de viaje discreto (Expo Android/iOS + Wear OS)
 
-Aplicación para **smartphone en Expo (Android / iOS)** y **reloj inteligente (Wear OS)** diseñada para orientar al viajero de manera discreta sin tener que sacar el teléfono en la calle: búsqueda de alojamiento cercano (desde tu ubicación GPS actual o en ciudades incluidas), planeación de transporte público y costos, croquis de ruta con flecha y brújula interactiva tanto en el teléfono como en el reloj, navegación giro por giro mediante patrones de vibración en la muñeca y avisos preventivos de viaje.
+Aplicación para **smartphone en Expo (Android / iOS)** y **reloj inteligente (Wear OS)** diseñada para orientar al viajero de manera discreta sin tener que sacar el teléfono en la calle: búsqueda de alojamiento cercano (desde tu ubicación GPS actual o en ciudades incluidas), planeación de transporte público y costos, croquis de ruta con flecha direccional impulsada en tiempo real por la brújula del celular tanto en el teléfono como en el reloj emulado, navegación giro por giro mediante patrones de vibración en la muñeca y avisos preventivos de viaje.
 
 El módulo móvil está construido con **Expo (React Native + TypeScript)** para poder ejecutarse directamente en un celular físico (**Android o iOS** mediante Expo Go) mientras en la laptop corre únicamente el emulador del smartwatch (**Wear OS**) enlazado por un puente local (`mobile/puente.js`), evitando saturar la memoria y CPU de la laptop con dos emuladores.
 

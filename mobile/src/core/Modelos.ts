@@ -125,6 +125,7 @@ export interface MapaReloj {
   destino: Punto | null;
   destinoNombre: string;
   trazos: TrazoMapa[];
+  rumbo?: number;
 }
 
 export interface EstadoReloj {
@@ -234,6 +235,7 @@ export function estadoRelojAJson(e: EstadoReloj): Record<string, unknown> {
           yo: e.mapa.yo ? { lat: e.mapa.yo.lat, lon: e.mapa.yo.lon } : null,
           dest: e.mapa.destino ? { lat: e.mapa.destino.lat, lon: e.mapa.destino.lon } : null,
           destN: e.mapa.destinoNombre,
+          rumbo: Math.round(e.mapa.rumbo ?? 0),
           tr: e.mapa.trazos.map((tr) => ({
             m: tr.modo,
             p: Geo.codificarPolilinea(tr.puntos),

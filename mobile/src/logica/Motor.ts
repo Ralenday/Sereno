@@ -124,12 +124,17 @@ export class Motor {
   }
 
   actualizarBrujula(grados: number): void {
-    const norm = ((grados % 360) + 360) % 360;
+    const norm = Math.round(((grados % 360) + 360) % 360) % 360;
     this.rumboBrujula = norm;
+    const prev = this._estado.rumboActual;
+    if (prev !== null && Math.abs(Geo.diferenciaAngulo(norm, prev)) < 2) {
+      return;
+    }
+    this._estado = { ...this._estado, rumboActual: norm };
     if (this._estado.nav && this._estado.ubicacion) {
       this.actualizarNav(this._estado.ubicacion, this._estado.hotelElegido?.nombre ?? 'Destino');
-    } else if (this._estado.rumboActual === null || Math.abs(this._estado.rumboActual - norm) >= 4) {
-      this.actualizar({ rumboActual: Math.round(norm) });
+    } else {
+      this.actualizar({ rumboActual: norm });
     }
   }
 
@@ -153,7 +158,7 @@ export class Motor {
     this.timerPublicar = setTimeout(() => {
       this.timerPublicar = null;
       void this.enlace.publicar(this.paraReloj(this._estado));
-    }, 300);
+    }, 150);
   }
 
   atender(c: Comando): void {
@@ -737,12 +742,13 @@ export class Motor {
       }
     }
     const mapa: MapaReloj | null =
-      e.ubicacion || e.hotelElegido || trazos.length > 0
+      e.ubicacion || e.ciudad || e.hotelElegido || trazos.length > 0
         ? {
             yo: e.ubicacion ?? e.ciudad?.centro ?? null,
             destino: e.hotelElegido?.punto ?? null,
             destinoNombre: e.hotelElegido?.nombre ?? '',
             trazos,
+            rumbo: Math.round(e.rumboActual ?? 0),
           }
         : null;
 
