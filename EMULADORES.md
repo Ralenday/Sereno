@@ -12,6 +12,15 @@ Para no saturar la laptop corriendo dos emuladores de Android al mismo tiempo, l
 
 ### 1. Compilar e iniciar el reloj Wear OS en el emulador
 
+Opción rápida (levanta el emulador `Wear_OS_XL_Round`, instala `wear-debug.apk`, otorga permisos, redirige el puerto `19887` y abre la app automáticamente):
+
+```bash
+cd mobile
+npm run reloj
+```
+
+O paso a paso manualmente:
+
 ```bash
 cd Sereno
 JBR=$(ls -d /var/lib/flatpak/app/com.google.AndroidStudio/x86_64/stable/*/files/extra/jbr | head -1)

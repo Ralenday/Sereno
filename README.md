@@ -83,15 +83,9 @@ Consulta el detalle completo en [`EMULADORES.md`](EMULADORES.md).
 
 2. **Levantar únicamente el emulador del reloj Wear OS en la laptop**:
    ```bash
-   E=~/Android/Sdk/emulator/emulator; A=~/Android/Sdk/platform-tools/adb
-   $E -avd Wear_OS_XL_Round -gpu swangle_indirect &
-
-   W=emulator-5554
-   $A -s $W install -r -g wear/build/outputs/apk/debug/wear-debug.apk
-   $A -s $W shell pm grant com.ralenday.sereno android.permission.ACCESS_LOCAL_NETWORK
-   $A -s $W forward tcp:19887 tcp:19887
-   $A -s $W shell am start -n com.ralenday.sereno/com.ralenday.sereno.wear.MainActivity
+   cd mobile && npm run reloj
    ```
+   *(Este script abre el emulador `Wear_OS_XL_Round`, instala `wear-debug.apk`, configura `adb forward tcp:19887 tcp:19887` y abre la app del reloj automáticamente).*
 
 3. **Iniciar el puente local y abrir la app móvil en Expo Go (Android o iOS)**:
    ```bash
