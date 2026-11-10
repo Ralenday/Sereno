@@ -1,6 +1,6 @@
 import * as Location from 'expo-location';
 import { StatusBar } from 'expo-status-bar';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -15,7 +15,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import Svg, { Circle, Line, Path } from 'react-native-svg';
+import Svg, { Circle, Line, Path, Polygon } from 'react-native-svg';
 import { Geo } from './src/core/Geo.ts';
 import type { Hotel, Orden, Punto, Ruta } from './src/core/Modelos.ts';
 import { Ciudades } from './src/datos/Ciudades.ts';
@@ -24,12 +24,19 @@ import { ANIO_DATOS } from './src/datos/Riesgo.ts';
 import { PUERTO_PUENTE_HTTP, PUERTO_RELOJ_TCP, PUERTO_TELEFONO_TCP } from './src/logica/EnlaceExpo.ts';
 import { type EstadoApp, Motor } from './src/logica/Motor.ts';
 
-const AMBAR = '#FCA311';
-const ROJO = '#E5484D';
-const VERDE = '#2E9E5B';
-const AZUL_RUTA = '#00B8F0';
-const FONDO = '#0E131F';
-const SUPERFICIE = '#182032';
+// Paleta suave y descansada para la vista (tonos pizarra, salvia y azul sereno sobre fondo claro cálido)
+const FONDO = '#F2F5F8';
+const SUPERFICIE = '#FFFFFF';
+const SUPERFICIE_SUAVE = '#EBF0F5';
+const BORDE = '#D8E1EB';
+const TEXTO_PRINCIPAL = '#1E293B';
+const TEXTO_SECUNDARIO = '#5B6B7C';
+const SALVIA = '#2E7D6B';
+const SALVIA_FONDO = '#E3F2EE';
+const AZUL_SERENO = '#3A6EA5';
+const AZUL_FONDO = '#E6F0FA';
+const AMBAR_SUAVE = '#9A6700';
+const AMBAR_FONDO = '#FDF3DC';
 
 function flechaTexto(grados: number): string {
   const g = ((grados % 360) + 360) % 360;
@@ -58,6 +65,46 @@ export default function App() {
   const [conectadoReloj, setConectadoReloj] = useState<boolean>(motor.enlace.conectado);
   const [puenteActivo, setPuenteActivo] = useState<boolean>(motor.enlace.puenteActivo);
 
+  const obtenerGpsActual = useCallback(
+    async (buscarAlObtener = false) => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          return;
+        }
+        motor.usarFuente('gps');
+        const conocida = await Location.getLastKnownPositionAsync();
+        if (conocida) {
+          motor.nuevaUbicacion(
+            { lat: conocida.coords.latitude, lon: conocida.coords.longitude },
+            conocida.coords.heading !== null && conocida.coords.heading >= 0
+              ? conocida.coords.heading
+              : null,
+            false,
+          );
+        }
+        const actual = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        motor.nuevaUbicacion(
+          { lat: actual.coords.latitude, lon: actual.coords.longitude },
+          actual.coords.heading !== null && actual.coords.heading >= 0
+            ? actual.coords.heading
+            : null,
+          false,
+        );
+        if (buscarAlObtener) {
+          void motor.buscar('hotel cerca');
+        }
+      } catch {
+        if (buscarAlObtener) {
+          void motor.buscar('hotel cerca');
+        }
+      }
+    },
+    [motor],
+  );
+
   useEffect(() => {
     motor.iniciar();
     const desuscribirMotor = motor.suscribir(() => setEstado({ ...motor.estado }));
@@ -73,11 +120,12 @@ export default function App() {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') return;
+        await obtenerGpsActual(false);
         subPos = await Location.watchPositionAsync(
           {
             accuracy: Location.Accuracy.Balanced,
             timeInterval: 3000,
-            distanceInterval: 5,
+            distanceInterval: 4,
           },
           (loc) => {
             motor.nuevaUbicacion(
@@ -101,16 +149,18 @@ export default function App() {
       subHeading?.remove();
       motor.detener();
     };
-  }, [motor]);
+  }, [motor, obtenerGpsActual]);
 
   const alerta = estado.alerta;
 
   return (
     <SafeAreaView style={estilos.contenedor}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <View style={estilos.cuerpo}>
-        {pestana === 0 && <PantallaViaje e={estado} motor={motor} />}
-        {pestana === 1 && <PantallaSeguridad e={estado} motor={motor} />}
+        {pestana === 0 && (
+          <PantallaViaje e={estado} motor={motor} alUsarGps={obtenerGpsActual} />
+        )}
+        {pestana === 1 && <PantallaPreferencias e={estado} motor={motor} />}
         {pestana === 2 && (
           <PantallaReloj
             e={estado}
@@ -124,7 +174,7 @@ export default function App() {
       <View style={estilos.barraInferior}>
         {[
           { ic: '🧭', et: 'Viaje' },
-          { ic: '🛡', et: 'Seguridad' },
+          { ic: '🛡', et: 'Avisos' },
           { ic: '⌚', et: 'Reloj' },
         ].map((item, i) => {
           const activo = pestana === i;
@@ -135,7 +185,7 @@ export default function App() {
               onPress={() => setPestana(i)}
             >
               <Text style={estilos.iconoBarra}>{item.ic}</Text>
-              <Text style={[estilos.textoBarra, activo && { color: AMBAR, fontWeight: '700' }]}>
+              <Text style={[estilos.textoBarra, activo && { color: SALVIA, fontWeight: '700' }]}>
                 {item.et}
               </Text>
             </Pressable>
@@ -147,21 +197,16 @@ export default function App() {
         <View style={estilos.modalFondo}>
           <View style={estilos.modalCaja}>
             <Text style={estilos.modalTitulo}>
-              {alerta?.tipo === 'RIESGO' ? '⚠ Aviso' : 'Sereno'}
+              {alerta?.tipo === 'RIESGO' ? 'Aviso de zona' : 'Sereno'}
             </Text>
             <Text style={estilos.modalTexto}>{alerta?.texto}</Text>
             <View style={estilos.modalBotones}>
-              {alerta?.pideRespuesta && (
-                <Pressable style={estilos.botonModalPeligro} onPress={() => motor.panico()}>
-                  <Text style={{ color: ROJO, fontWeight: '700' }}>Llamar 911</Text>
-                </Pressable>
-              )}
               <Pressable
-                style={estilos.botonModalOk}
+                style={estilos.botonPrimario}
                 onPress={() => (alerta?.pideRespuesta ? motor.estoyBien() : motor.cerrarAlerta())}
               >
-                <Text style={{ color: AMBAR, fontWeight: '700' }}>
-                  {alerta?.pideRespuesta ? 'Estoy bien' : 'OK'}
+                <Text style={estilos.textoBotonPrimario}>
+                  {alerta?.pideRespuesta ? 'Todo bien, continuar' : 'Entendido'}
                 </Text>
               </Pressable>
             </View>
@@ -174,102 +219,131 @@ export default function App() {
 
 // =================== VIAJE ===================
 
-function PantallaViaje({ e, motor }: { e: EstadoApp; motor: Motor }) {
+function PantallaViaje({
+  e,
+  motor,
+  alUsarGps,
+}: {
+  e: EstadoApp;
+  motor: Motor;
+  alUsarGps: (buscarAlObtener?: boolean) => Promise<void>;
+}) {
   const [texto, setTexto] = useState('Necesito hotel barato cerca del centro y transporte público');
   const rutaVisible =
     e.rutaActiva !== null ? e.rutas[e.rutaActiva] : e.rutas[e.rutaSeleccionada];
 
-  const colorRiesgo =
-    e.riesgo?.nivel === 'ALTO'
-      ? ROJO
-      : e.riesgo?.nivel === 'MEDIO'
-        ? AMBAR
-        : e.riesgo?.nivel === 'BAJO'
-          ? VERDE
-          : '#9CA3AF';
-
   return (
     <ScrollView contentContainerStyle={estilos.listaContenido}>
-      <Text style={estilos.tituloPrincipal}>Sereno</Text>
-      <Text style={estilos.subtitulo}>Compañero de viaje discreto (Expo + Wear OS)</Text>
-
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
-        <View style={estilos.filaChips}>
-          <Chip
-            activo={e.fuenteUbicacion === 'gps'}
-            texto="📍 GPS"
-            onPress={() => motor.usarFuente('gps')}
-          />
-          {Ciudades.todas.map((c) => (
-            <Chip
-              key={c.id}
-              activo={e.fuenteUbicacion === c.id}
-              texto={`${c.nombre} (${c.tamano.toLowerCase()})`}
-              onPress={() => motor.usarFuente(c.id)}
-            />
-          ))}
+      <View style={estilos.filaEncabezado}>
+        <View>
+          <Text style={estilos.tituloPrincipal}>Sereno</Text>
+          <Text style={estilos.subtitulo}>Compañero de viaje discreto</Text>
         </View>
-      </ScrollView>
-
-      <Text style={estilos.textoGris}>
-        {e.ciudad?.nombre ?? 'Ciudad no detectada'}
-        {e.ubicacion ? ` · ${e.ubicacion.lat.toFixed(4)}, ${e.ubicacion.lon.toFixed(4)}` : ''}
-      </Text>
-      {e.riesgo && (
-        <Text style={[estilos.textoPequeno, { color: colorRiesgo }]}>
-          Zona: {e.riesgo.nivel.toLowerCase()} — {e.riesgo.motivo}
-        </Text>
-      )}
-
-      <TextInput
-        value={texto}
-        onChangeText={setTexto}
-        placeholder="¿Qué necesitas? (puedes usar el micrófono del teclado)"
-        placeholderTextColor="#6B7280"
-        multiline
-        style={estilos.campoTexto}
-      />
-
-      <View style={estilos.filaBotones}>
-        <Pressable
-          style={[estilos.botonPrimario, e.buscando && { opacity: 0.6 }]}
-          disabled={e.buscando}
-          onPress={() => void motor.buscar(texto)}
-        >
-          <Text style={estilos.textoBotonPrimario}>Buscar</Text>
-        </Pressable>
+        {e.rumboActual !== null && (
+          <View style={estilos.insigniaBrujula}>
+            <Text style={estilos.textoInsigniaBrujula}>🧭 {e.rumboActual}°</Text>
+          </View>
+        )}
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <View style={estilos.filaChips}>
-          {[
-            'Hostal barato',
-            'Hotel mejor valorado cerca',
-            'Motel menos de 800',
-            'Hotel cerca del centro',
-          ].map((s) => (
-            <Pressable
-              key={s}
-              style={estilos.botonSugerencia}
-              onPress={() => {
-                setTexto(s);
-                void motor.buscar(s);
-              }}
-            >
-              <Text style={estilos.textoSugerencia}>{s}</Text>
-            </Pressable>
-          ))}
+      {/* Selector de ubicación: GPS real del celular + San Luis Río Colorado + CDMX */}
+      <View style={estilos.tarjeta}>
+        <Text style={estilos.etiquetaSeccion}>¿Desde dónde buscas?</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 4 }}>
+          <View style={estilos.filaChips}>
+            <Chip
+              activo={e.fuenteUbicacion === 'gps'}
+              texto="📍 Mi ubicación (GPS)"
+              onPress={() => void alUsarGps(true)}
+            />
+            {Ciudades.todas.map((c) => (
+              <Chip
+                key={c.id}
+                activo={e.fuenteUbicacion === c.id}
+                texto={c.nombre}
+                onPress={() => {
+                  motor.usarFuente(c.id);
+                  void motor.buscar(texto);
+                }}
+              />
+            ))}
+          </View>
+        </ScrollView>
+        <Text style={estilos.textoSecundario}>
+          {e.ciudad?.nombre ?? 'Ubicación actual'}
+          {e.ubicacion ? ` · ${e.ubicacion.lat.toFixed(4)}, ${e.ubicacion.lon.toFixed(4)}` : ''}
+        </Text>
+        {e.riesgo && (
+          <Text style={[estilos.textoPequeno, { color: TEXTOS_RIESGO[e.riesgo.nivel] ?? TEXTO_SECUNDARIO }]}>
+            Zona: {e.riesgo.nivel.toLowerCase()} — {e.riesgo.motivo}
+          </Text>
+        )}
+      </View>
+
+      {/* Buscador */}
+      <View style={estilos.tarjeta}>
+        <TextInput
+          value={texto}
+          onChangeText={setTexto}
+          placeholder="¿Qué necesitas? Ej.: hotel barato cerca"
+          placeholderTextColor="#8B98A9"
+          multiline
+          style={estilos.campoTexto}
+        />
+
+        <View style={[estilos.filaBotones, { marginTop: 8, flexWrap: 'wrap' }]}>
+          <Pressable
+            style={[estilos.botonPrimario, e.buscando && { opacity: 0.6 }]}
+            disabled={e.buscando}
+            onPress={() => void motor.buscar(texto)}
+          >
+            <Text style={estilos.textoBotonPrimario}>Buscar alojamiento</Text>
+          </Pressable>
+          <Pressable
+            style={estilos.botonSecundario}
+            disabled={e.buscando}
+            onPress={() => void alUsarGps(true)}
+          >
+            <Text style={estilos.textoBotonSecundario}>📍 Hoteles cerca de mi GPS</Text>
+          </Pressable>
         </View>
-      </ScrollView>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6 }}>
+          <View style={estilos.filaChips}>
+            {[
+              'Hotel cerca de aquí',
+              'Hostal barato',
+              'Hotel mejor valorado cerca',
+              'Motel menos de 800',
+            ].map((s) => (
+              <Pressable
+                key={s}
+                style={estilos.botonSugerencia}
+                onPress={() => {
+                  setTexto(s);
+                  void motor.buscar(s);
+                }}
+              >
+                <Text style={estilos.textoSugerencia}>{s}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </ScrollView>
+      </View>
 
       {(e.buscando || e.calculandoRutas) && (
-        <ActivityIndicator color={AMBAR} style={{ marginVertical: 6 }} />
+        <ActivityIndicator color={SALVIA} style={{ marginVertical: 4 }} />
       )}
-      {e.mensaje && <Text style={[estilos.textoPequeno, { color: AMBAR }]}>{e.mensaje}</Text>}
+      {e.mensaje && (
+        <View style={estilos.cajaMensaje}>
+          <Text style={estilos.textoMensaje}>{e.mensaje}</Text>
+        </View>
+      )}
 
       {(e.ubicacion || e.hoteles.length > 0 || e.rutas.length > 0) && (
         <TarjetaMapaTelefono
           ubicacion={e.ubicacion ?? e.ciudad?.centro ?? null}
+          rumboFlecha={e.nav?.flechaGrados ?? e.rumboActual ?? 0}
           hoteles={e.hoteles}
           hotelElegido={e.hotelElegido}
           ruta={rutaVisible ?? null}
@@ -279,22 +353,27 @@ function PantallaViaje({ e, motor }: { e: EstadoApp; motor: Motor }) {
 
       {e.nav && (
         <View style={estilos.tarjetaNav}>
-          <Text style={estilos.tituloTarjeta}>Navegando a {e.nav.destino}</Text>
-          <Text style={estilos.textoBlanco}>
-            {flechaTexto(e.nav.flechaGrados)}  {Geo.textoDistancia(e.nav.metrosAlGiro)} →{' '}
-            {e.nav.giro.toLowerCase().replace('_', ' ')} en {e.nav.calle}
+          <View style={estilos.filaEncabezado}>
+            <Text style={estilos.tituloTarjeta}>🧭 Guiando hacia {e.nav.destino}</Text>
+            <Text style={estilos.insigniaDistancia}>{Geo.textoDistancia(e.nav.metrosAlGiro)}</Text>
+          </View>
+          <Text style={estilos.textoPrincipal}>
+            {flechaTexto(e.nav.flechaGrados)}  { e.nav.giro.toLowerCase().replace('_', ' ') } en{' '}
+            <Text style={{ fontWeight: '700' }}>{e.nav.calle}</Text>
           </Text>
-          {e.nav.indicacion && <Text style={{ color: AMBAR }}>{e.nav.indicacion}</Text>}
-          <Text style={estilos.textoGris}>
+          {e.nav.indicacion && (
+            <Text style={{ color: AZUL_SERENO, fontWeight: '600' }}>{e.nav.indicacion}</Text>
+          )}
+          <Text style={estilos.textoSecundario}>
             Faltan {Geo.textoDistancia(e.nav.metrosRestantes)} · ~{e.nav.minutosRestantes} min
           </Text>
           <View style={[estilos.filaBotones, { marginTop: 8 }]}>
             <Pressable
-              style={estilos.botonSecundario}
+              style={estilos.botonPrimario}
               onPress={() => motor.simular(!e.simulando)}
             >
-              <Text style={estilos.textoBotonSecundario}>
-                {e.simulando ? 'Pausar simulación' : 'Simular caminata'}
+              <Text style={estilos.textoBotonPrimario}>
+                {e.simulando ? '⏸ Pausar simulación' : '▶ Simular recorrido'}
               </Text>
             </Pressable>
             <Pressable style={estilos.botonSecundario} onPress={() => motor.detenerNav()}>
@@ -306,12 +385,12 @@ function PantallaViaje({ e, motor }: { e: EstadoApp; motor: Motor }) {
 
       {e.hotelElegido && e.rutas.length > 0 && (
         <View style={{ gap: 8 }}>
-          <Text style={estilos.tituloSeccion}>Cómo llegar a {e.hotelElegido.nombre}</Text>
+          <Text style={estilos.tituloSeccion}>Rutas hacia {e.hotelElegido.nombre}</Text>
           {e.ciudad?.tarifaDescuento !== undefined && (
             <Text style={estilos.textoNota}>
               Combi en {e.ciudad.nombre}: ${Math.round(e.ciudad.tarifas.MICRO ?? 14)} general · $
-              {Math.round(e.ciudad.tarifaDescuento)} estudiante y adulto mayor (parada en cualquier
-              punto de la ruta). Taxi desde ${Math.round(e.ciudad.taxiBanderazo)} según la zona.
+              {Math.round(e.ciudad.tarifaDescuento)} estudiante y adulto mayor. Taxi desde $
+              {Math.round(e.ciudad.taxiBanderazo)} según la zona.
             </Text>
           )}
           {e.rutas.map((r, i) => (
@@ -330,7 +409,7 @@ function PantallaViaje({ e, motor }: { e: EstadoApp; motor: Motor }) {
       {e.hoteles.length > 0 && (
         <View style={{ gap: 8 }}>
           <View style={estilos.filaEncabezado}>
-            <Text style={estilos.tituloSeccion}>Alojamiento</Text>
+            <Text style={estilos.tituloSeccion}>Alojamiento cercano ({e.hoteles.length})</Text>
             <View style={estilos.filaChips}>
               {(
                 [
@@ -357,8 +436,8 @@ function PantallaViaje({ e, motor }: { e: EstadoApp; motor: Motor }) {
             />
           ))}
           <Text style={estilos.textoNota}>
-            Alojamiento y mapa: © colaboradores de OpenStreetMap (ODbL). Precios ESTIMADOS por tipo
-            y estrellas; no hay API gratuita de precios reales. Confirma al llegar.
+            Alojamiento y mapa: © colaboradores de OpenStreetMap (ODbL). Precios estimados por
+            categoría.
           </Text>
         </View>
       )}
@@ -366,16 +445,25 @@ function PantallaViaje({ e, motor }: { e: EstadoApp; motor: Motor }) {
   );
 }
 
+const TEXTOS_RIESGO: Record<string, string> = {
+  ALTO: AMBAR_SUAVE,
+  MEDIO: AMBAR_SUAVE,
+  BAJO: SALVIA,
+  DESCONOCIDO: TEXTO_SECUNDARIO,
+};
+
 // =================== MAPA OSM (TELÉFONO) ===================
 
 function TarjetaMapaTelefono({
   ubicacion,
+  rumboFlecha,
   hoteles,
   hotelElegido,
   ruta,
   alElegirHotel,
 }: {
   ubicacion: Punto | null;
+  rumboFlecha: number;
   hoteles: Hotel[];
   hotelElegido: Hotel | null;
   ruta: Ruta | null;
@@ -448,10 +536,10 @@ function TarjetaMapaTelefono({
   }
 
   return (
-    <View style={estilos.tarjetaMapa}>
+    <View style={estilos.tarjeta}>
       <View style={estilos.filaEncabezado}>
         <Text style={[estilos.tituloTarjeta, { flex: 1 }]}>
-          {hotelElegido ? `Mapa: ruta a ${hotelElegido.nombre}` : 'Mapa de alojamiento y rutas'}
+          {hotelElegido ? `Croquis hacia ${hotelElegido.nombre}` : 'Mapa de ubicación y hoteles'}
         </Text>
         <View style={{ flexDirection: 'row', gap: 6 }}>
           <Pressable
@@ -486,17 +574,17 @@ function TarjetaMapaTelefono({
               top: t.top,
               width: 256,
               height: 256,
-              opacity: 0.88,
+              opacity: 0.92,
             }}
           />
         ))}
 
         <Svg width={layout.w} height={layout.h} style={StyleSheet.absoluteFill}>
-          {/* Cuadrícula de respaldo */}
+          {/* Cuadrícula suave de respaldo */}
           {[48, 96, 144, 192, 240, 288].map((pos) => (
             <React.Fragment key={pos}>
-              <Line x1={pos} y1={0} x2={pos} y2={layout.h} stroke="#28344E" strokeWidth={0.5} />
-              <Line x1={0} y1={pos} x2={layout.w} y2={pos} stroke="#28344E" strokeWidth={0.5} />
+              <Line x1={pos} y1={0} x2={pos} y2={layout.h} stroke="#CBD5E1" strokeWidth={0.5} />
+              <Line x1={0} y1={pos} x2={layout.w} y2={pos} stroke="#CBD5E1" strokeWidth={0.5} />
             </React.Fragment>
           ))}
 
@@ -515,18 +603,16 @@ function TarjetaMapaTelefono({
               .join(' ');
             const color =
               t.modo === 'CAMINAR'
-                ? AMBAR
+                ? SALVIA
                 : t.modo === 'TAXI'
-                  ? '#A855F7'
-                  : t.modo === 'METRO'
-                    ? '#FF6B35'
-                    : AZUL_RUTA;
+                  ? '#6D597A'
+                  : AZUL_SERENO;
             return (
               <React.Fragment key={`tramo-${idx}`}>
                 <Path
                   d={d}
-                  stroke="rgba(0,0,0,0.65)"
-                  strokeWidth={7}
+                  stroke="rgba(255,255,255,0.85)"
+                  strokeWidth={8}
                   fill="none"
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -553,52 +639,51 @@ function TarjetaMapaTelefono({
                 <Circle
                   cx={pos.x}
                   cy={pos.y}
-                  r={esElegido ? 9 : 6.5}
-                  fill="#000000"
+                  r={esElegido ? 9.5 : 7}
+                  fill="#FFFFFF"
                   onPress={() => alElegirHotel(h)}
                 />
                 <Circle
                   cx={pos.x}
                   cy={pos.y}
-                  r={esElegido ? 7 : 4.5}
-                  fill={esElegido ? VERDE : AMBAR}
+                  r={esElegido ? 7 : 5}
+                  fill={esElegido ? SALVIA : '#64748B'}
                   onPress={() => alElegirHotel(h)}
                 />
               </React.Fragment>
             );
           })}
 
-          {/* Ubicación actual */}
-          {ubicacion && (
-            <React.Fragment>
-              <Circle
-                cx={aPantalla(ubicacion).x}
-                cy={aPantalla(ubicacion).y}
-                r={13}
-                fill="rgba(37,99,235,0.35)"
-              />
-              <Circle
-                cx={aPantalla(ubicacion).x}
-                cy={aPantalla(ubicacion).y}
-                r={6.5}
-                fill="#FFFFFF"
-              />
-              <Circle
-                cx={aPantalla(ubicacion).x}
-                cy={aPantalla(ubicacion).y}
-                r={4.5}
-                fill="#2563EB"
-              />
-            </React.Fragment>
-          )}
+          {/* Ubicación actual + flecha de orientación */}
+          {ubicacion && (() => {
+            const pos = aPantalla(ubicacion);
+            const rad = ((rumboFlecha - 90) * Math.PI) / 180.0;
+            const px = pos.x + Math.cos(rad) * 16;
+            const py = pos.y + Math.sin(rad) * 16;
+            const izqX = pos.x + Math.cos(rad - 0.5) * 8;
+            const izqY = pos.y + Math.sin(rad - 0.5) * 8;
+            const derX = pos.x + Math.cos(rad + 0.5) * 8;
+            const derY = pos.y + Math.sin(rad + 0.5) * 8;
+            return (
+              <React.Fragment>
+                <Circle cx={pos.x} cy={pos.y} r={14} fill="rgba(58,110,165,0.22)" />
+                <Polygon
+                  points={`${px},${py} ${izqX},${izqY} ${derX},${derY}`}
+                  fill={AZUL_SERENO}
+                />
+                <Circle cx={pos.x} cy={pos.y} r={7} fill="#FFFFFF" />
+                <Circle cx={pos.x} cy={pos.y} r={5} fill={AZUL_SERENO} />
+              </React.Fragment>
+            );
+          })()}
         </Svg>
       </View>
 
       <View style={[estilos.filaChips, { marginTop: 6, flexWrap: 'wrap' }]}>
-        <Text style={estilos.textoLeyenda}>🔵 Tu ubicación</Text>
-        <Text style={estilos.textoLeyenda}>🟢 Destino</Text>
-        <Text style={estilos.textoLeyenda}>🟦 Combi / transporte</Text>
-        <Text style={estilos.textoLeyenda}>🟨 Caminar</Text>
+        <Text style={estilos.textoLeyenda}>🔵 Tu posición</Text>
+        <Text style={estilos.textoLeyenda}>🟢 Hotel destino</Text>
+        <Text style={estilos.textoLeyenda}>🟦 Transporte</Text>
+        <Text style={estilos.textoLeyenda}>🟩 Caminar</Text>
       </View>
     </View>
   );
@@ -617,12 +702,19 @@ function TarjetaHotel({
   return (
     <Pressable
       onPress={onClick}
-      style={[estilos.tarjeta, elegido && { backgroundColor: '#3A2E10', borderColor: AMBAR }]}
+      style={[
+        estilos.tarjeta,
+        elegido && { backgroundColor: SALVIA_FONDO, borderColor: SALVIA },
+      ]}
     >
-      <Text style={estilos.tituloTarjeta}>{h.nombre}</Text>
-      <Text style={estilos.textoBlanco}>
-        {NOMBRE_TIPO[h.tipo] ?? h.tipo} · ≈ ${h.precioEstimado}/noche ·{' '}
-        {Geo.textoDistancia(h.distanciaM)}
+      <View style={estilos.filaEncabezado}>
+        <Text style={[estilos.tituloTarjeta, { flex: 1 }]}>{h.nombre}</Text>
+        <Text style={{ color: SALVIA, fontWeight: '700', fontSize: 13 }}>
+          {Geo.textoDistancia(h.distanciaM)}
+        </Text>
+      </View>
+      <Text style={estilos.textoPrincipal}>
+        {NOMBRE_TIPO[h.tipo] ?? h.tipo} · ≈ ${h.precioEstimado}/noche
         {h.estrellas > 0 ? ` · ${'★'.repeat(h.estrellas)}` : ''}
       </Text>
       {detalles !== '' && <Text style={estilos.textoNota}>{detalles}</Text>}
@@ -646,17 +738,20 @@ function TarjetaRuta({
   return (
     <Pressable
       onPress={seleccionar}
-      style={[estilos.tarjeta, activa && { backgroundColor: '#1F3A2A', borderColor: VERDE }]}
+      style={[
+        estilos.tarjeta,
+        activa && { backgroundColor: AZUL_FONDO, borderColor: AZUL_SERENO },
+      ]}
     >
       <View style={estilos.filaEncabezado}>
         <View style={{ flex: 1 }}>
           <Text style={estilos.tituloTarjeta}>
             {r.minutos} min · ${r.costo.toFixed(2)} · {r.transbordos} transbordo(s)
           </Text>
-          <Text style={estilos.textoGris}>{r.titulo}</Text>
+          <Text style={estilos.textoSecundario}>{r.titulo}</Text>
         </View>
         <Pressable style={estilos.botonIr} onPress={iniciar}>
-          <Text style={{ color: '#000', fontWeight: '700' }}>Ir</Text>
+          <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>Guiar</Text>
         </Pressable>
       </View>
 
@@ -685,16 +780,16 @@ function TarjetaRuta({
           </Text>
         );
       })}
-      <Text style={[estilos.textoPequeno, { color: AMBAR, marginTop: 4 }]}>
-        Total con 1 noche ≈ ${Math.round(r.costo + precioHotel)}
+      <Text style={[estilos.textoPequeno, { color: SALVIA, fontWeight: '600', marginTop: 4 }]}>
+        Total estimado con 1 noche ≈ ${Math.round(r.costo + precioHotel)}
       </Text>
     </Pressable>
   );
 }
 
-// =================== SEGURIDAD ===================
+// =================== AVISOS Y PREFERENCIAS ===================
 
-function PantallaSeguridad({ e, motor }: { e: EstadoApp; motor: Motor }) {
+function PantallaPreferencias({ e, motor }: { e: EstadoApp; motor: Motor }) {
   const s = motor.seguridad;
   const [quieto, setQuieto] = useState(s.detectarQuieto);
   const [minutos, setMinutos] = useState(s.minutosQuieto);
@@ -703,24 +798,29 @@ function PantallaSeguridad({ e, motor }: { e: EstadoApp; motor: Motor }) {
 
   return (
     <ScrollView contentContainerStyle={estilos.listaContenido}>
-      <Text style={estilos.tituloPrincipal}>Seguridad</Text>
+      <Text style={estilos.tituloPrincipal}>Avisos de viaje</Text>
+      <Text style={estilos.subtitulo}>
+        Notificaciones discretas en el reloj y el teléfono durante tu trayecto
+      </Text>
 
       <View style={estilos.tarjeta}>
         <View style={estilos.filaEncabezado}>
-          <Text style={[estilos.textoBlanco, { flex: 1 }]}>
-            Preguntar si estoy bien al quedarme quieto
+          <Text style={[estilos.textoPrincipal, { flex: 1, fontWeight: '600' }]}>
+            Aviso por inactividad en ruta
           </Text>
           <Switch
             value={quieto}
+            trackColor={{ false: '#CBD5E1', true: '#94D2C5' }}
+            thumbColor={quieto ? SALVIA : '#F8FAFC'}
             onValueChange={(v) => {
               setQuieto(v);
               s.detectarQuieto = v;
             }}
           />
         </View>
-        <Text style={estilos.textoGris}>
-          Tras {minutos} min sin moverte durante un trayecto (fuera del hotel). Si no respondes en 2
-          min se abre llamada al 911.
+        <Text style={estilos.textoSecundario}>
+          Te pregunta discretamente en el reloj si llevas {minutos} min sin avanzar durante una
+          navegación.
         </Text>
         <View style={[estilos.filaChips, { marginTop: 8 }]}>
           {[5, 10, 15, 20, 30].map((m) => (
@@ -736,10 +836,14 @@ function PantallaSeguridad({ e, motor }: { e: EstadoApp; motor: Motor }) {
           ))}
         </View>
 
-        <View style={[estilos.filaEncabezado, { marginTop: 12 }]}>
-          <Text style={[estilos.textoBlanco, { flex: 1 }]}>Avisos de zona de riesgo</Text>
+        <View style={[estilos.filaEncabezado, { marginTop: 14 }]}>
+          <Text style={[estilos.textoPrincipal, { flex: 1, fontWeight: '600' }]}>
+            Avisos orientativos de zona
+          </Text>
           <Switch
             value={riesgo}
+            trackColor={{ false: '#CBD5E1', true: '#94D2C5' }}
+            thumbColor={riesgo ? SALVIA : '#F8FAFC'}
             onValueChange={(v) => {
               setRiesgo(v);
               s.avisosRiesgo = v;
@@ -748,21 +852,15 @@ function PantallaSeguridad({ e, motor }: { e: EstadoApp; motor: Motor }) {
         </View>
       </View>
 
-      <Pressable style={estilos.botonPanico} onPress={() => motor.panico()}>
-        <Text style={{ color: '#FFF', fontWeight: '700', textAlign: 'center' }}>
-          SOS · MARCAR 911 (en el reloj: mantener presionado)
-        </Text>
-      </Pressable>
-
       <Pressable style={estilos.botonSecundario} onPress={() => motor.reportarZona()}>
         <Text style={[estilos.textoBotonSecundario, { textAlign: 'center' }]}>
-          Marcar mi ubicación como zona insegura
+          Marcar mi ubicación actual como zona de precaución
         </Text>
       </Pressable>
 
       <View style={estilos.tarjeta}>
-        <Text style={estilos.textoBlanco}>
-          Historial de ruta guardado en el teléfono: {historial} puntos
+        <Text style={estilos.textoPrincipal}>
+          Puntos de recorrido guardados localmente: {historial}
         </Text>
         <Pressable
           style={{ marginTop: 6 }}
@@ -771,14 +869,13 @@ function PantallaSeguridad({ e, motor }: { e: EstadoApp; motor: Motor }) {
             setHistorial(0);
           }}
         >
-          <Text style={{ color: AMBAR }}>Borrar historial</Text>
+          <Text style={{ color: AZUL_SERENO, fontWeight: '600' }}>Limpiar recorrido local</Text>
         </Pressable>
       </View>
 
       <Text style={estilos.textoNota}>
-        Riesgo en CDMX: carpetas de investigación FGJ {ANIO_DATOS} (datos.cdmx.gob.mx, coordenadas
-        aproximadas). En San Luis R.C. no hay delitos geolocalizados abiertos: se usan tus reportes
-        y la hora. Todo es orientativo.
+        Datos de precaución en CDMX: carpetas FGJ {ANIO_DATOS} (datos.cdmx.gob.mx, coordenadas
+        aproximadas). En otras ciudades se consideran tus propias notas y el horario nocturno.
       </Text>
     </ScrollView>
   );
@@ -805,24 +902,40 @@ function PantallaReloj({
       ? `${e.rutas.length} rutas a ${e.hotelElegido?.nombre ?? ''}`
       : e.hoteles.length > 0
         ? `${Math.min(8, e.hoteles.length)} hoteles`
-        : 'Inicio (sin búsqueda)';
+        : 'Inicio (esperando búsqueda)';
 
   return (
     <ScrollView contentContainerStyle={estilos.listaContenido}>
       <Text style={estilos.tituloPrincipal}>Reloj (Wear OS)</Text>
+      <Text style={estilos.subtitulo}>
+        Sincronización con el emulador del smartwatch en tu laptop
+      </Text>
 
       <View style={estilos.tarjeta}>
-        <Text style={{ color: conectado ? VERDE : ROJO, fontWeight: '700', fontSize: 16 }}>
-          {conectado ? '● Reloj conectado' : '○ Reloj no conectado'}
+        <Text
+          style={{
+            color: conectado ? SALVIA : AMBAR_SUAVE,
+            fontWeight: '700',
+            fontSize: 16,
+          }}
+        >
+          {conectado ? '● Reloj conectado' : '○ Reloj no detectado aún'}
         </Text>
-        <Text style={{ color: puenteActivo ? VERDE : AMBAR, fontSize: 13, marginTop: 2 }}>
+        <Text
+          style={{
+            color: puenteActivo ? AZUL_SERENO : AMBAR_SUAVE,
+            fontSize: 13,
+            marginTop: 2,
+          }}
+        >
           {puenteActivo
-            ? `● Puente local activo (${motor.enlace.urlPuente})`
-            : `○ Puente local no detectado en ${motor.enlace.urlPuente} (corre: npm run puente)`}
+            ? `● Puente activo (${motor.enlace.urlPuente})`
+            : `○ Puente no detectado en ${motor.enlace.urlPuente} (corre: npm run puente)`}
         </Text>
         <Text style={[estilos.textoNota, { marginTop: 4 }]}>
-          El puente en la laptop escucha HTTP {PUERTO_PUENTE_HTTP} desde Expo (Android/iOS) y enlaza
-          por TCP {PUERTO_TELEFONO_TCP}/{PUERTO_RELOJ_TCP} con el emulador del reloj.
+          En la laptop: HTTP {PUERTO_PUENTE_HTTP} (Expo) ↔ TCP {PUERTO_TELEFONO_TCP}/
+          {PUERTO_RELOJ_TCP} (Emulador Wear OS). En el reloj puedes girar la brújula con ↺ / ↻ o
+          arrastrando el croquis.
         </Text>
 
         <View style={[estilos.filaBotones, { marginTop: 8 }]}>
@@ -830,7 +943,7 @@ function PantallaReloj({
             value={hostInput}
             onChangeText={setHostInput}
             placeholder="IP de tu laptop (ej. 192.168.1.50)"
-            placeholderTextColor="#6B7280"
+            placeholderTextColor="#8B98A9"
             style={[estilos.campoTexto, { flex: 1, minHeight: 40, paddingVertical: 6 }]}
           />
           <Pressable
@@ -843,18 +956,18 @@ function PantallaReloj({
       </View>
 
       <View style={estilos.tarjeta}>
-        <Text style={estilos.tituloTarjeta}>Lo que ve el reloj ahora</Text>
-        <Text style={estilos.textoBlanco}>{resumenReloj}</Text>
+        <Text style={estilos.tituloTarjeta}>Estado actual en el reloj</Text>
+        <Text style={estilos.textoPrincipal}>{resumenReloj}</Text>
         {e.soloVibracion && (
-          <Text style={{ color: AMBAR, marginTop: 4 }}>
-            Modo solo vibración activado desde el reloj
+          <Text style={{ color: SALVIA, marginTop: 4 }}>
+            Modo discreto (solo vibración) activo en el reloj
           </Text>
         )}
       </View>
 
-      <Text style={estilos.tituloSeccion}>Bitácora</Text>
+      <Text style={estilos.tituloSeccion}>Actividad reciente</Text>
       {e.bitacora.length === 0 ? (
-        <Text style={estilos.textoNota}>Sin comandos del reloj todavía.</Text>
+        <Text style={estilos.textoNota}>Sin acciones desde el reloj todavía.</Text>
       ) : (
         e.bitacora.map((linea, idx) => (
           <Text key={idx} style={estilos.textoNota}>
@@ -862,11 +975,6 @@ function PantallaReloj({
           </Text>
         ))
       )}
-
-      <Text style={[estilos.textoNota, { marginTop: 12 }]}>
-        Datos: OpenStreetMap (Overpass, Nominatim, teselas), OSRM de FOSSGIS (rutas a pie), datos
-        abiertos CDMX y rutas locales de SLRC.
-      </Text>
     </ScrollView>
   );
 }
@@ -882,7 +990,7 @@ function Chip({
 }) {
   return (
     <Pressable onPress={onPress} style={[estilos.chip, activo && estilos.chipActivo]}>
-      <Text style={[estilos.textoChip, activo && { color: '#000', fontWeight: '700' }]}>
+      <Text style={[estilos.textoChip, activo && { color: SALVIA, fontWeight: '700' }]}>
         {texto}
       </Text>
     </Pressable>
@@ -904,43 +1012,66 @@ const estilos = StyleSheet.create({
     paddingBottom: 28,
   },
   tituloPrincipal: {
-    color: '#FFFFFF',
-    fontSize: 26,
+    color: TEXTO_PRINCIPAL,
+    fontSize: 25,
     fontWeight: '700',
   },
   subtitulo: {
-    color: '#9CA3AF',
+    color: TEXTO_SECUNDARIO,
     fontSize: 13,
   },
+  etiquetaSeccion: {
+    color: TEXTO_SECUNDARIO,
+    fontSize: 12,
+    fontWeight: '600',
+  },
   tituloSeccion: {
-    color: '#FFFFFF',
+    color: TEXTO_PRINCIPAL,
     fontSize: 17,
     fontWeight: '700',
   },
   tituloTarjeta: {
-    color: '#FFFFFF',
+    color: TEXTO_PRINCIPAL,
     fontSize: 15,
     fontWeight: '700',
   },
-  textoBlanco: {
-    color: '#E5E7EB',
+  textoPrincipal: {
+    color: TEXTO_PRINCIPAL,
     fontSize: 14,
   },
-  textoGris: {
-    color: '#9CA3AF',
+  textoSecundario: {
+    color: TEXTO_SECUNDARIO,
     fontSize: 13,
   },
   textoPequeno: {
-    color: '#D1D5DB',
+    color: TEXTO_PRINCIPAL,
     fontSize: 13,
   },
   textoNota: {
-    color: '#9CA3AF',
+    color: TEXTO_SECUNDARIO,
     fontSize: 12,
   },
   textoLeyenda: {
-    color: '#D1D5DB',
+    color: TEXTO_SECUNDARIO,
     fontSize: 11,
+  },
+  insigniaBrujula: {
+    backgroundColor: SALVIA_FONDO,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#B8DFD6',
+  },
+  textoInsigniaBrujula: {
+    color: SALVIA,
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  insigniaDistancia: {
+    color: SALVIA,
+    fontWeight: '700',
+    fontSize: 16,
   },
   filaChips: {
     flexDirection: 'row',
@@ -960,126 +1091,131 @@ const estilos = StyleSheet.create({
   },
   chip: {
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: 18,
-    backgroundColor: SUPERFICIE,
+    backgroundColor: SUPERFICIE_SUAVE,
     borderWidth: 1,
-    borderColor: '#2E3A52',
+    borderColor: BORDE,
   },
   chipActivo: {
-    backgroundColor: AMBAR,
-    borderColor: AMBAR,
+    backgroundColor: SALVIA_FONDO,
+    borderColor: SALVIA,
   },
   textoChip: {
-    color: '#E5E7EB',
+    color: TEXTO_PRINCIPAL,
     fontSize: 13,
   },
   campoTexto: {
-    backgroundColor: SUPERFICIE,
-    color: '#FFFFFF',
+    backgroundColor: '#F8FAFC',
+    color: TEXTO_PRINCIPAL,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#2E3A52',
+    borderColor: BORDE,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    minHeight: 54,
+    minHeight: 50,
     fontSize: 14,
   },
   botonPrimario: {
-    backgroundColor: AMBAR,
-    paddingHorizontal: 18,
+    backgroundColor: SALVIA,
+    paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: 20,
+    borderRadius: 18,
   },
   textoBotonPrimario: {
-    color: '#000000',
+    color: '#FFFFFF',
     fontWeight: '700',
-    fontSize: 14,
+    fontSize: 13,
   },
   botonSecundario: {
+    backgroundColor: SUPERFICIE_SUAVE,
     borderWidth: 1,
-    borderColor: '#4B5563',
+    borderColor: BORDE,
     paddingHorizontal: 14,
     paddingVertical: 9,
-    borderRadius: 20,
+    borderRadius: 18,
   },
   textoBotonSecundario: {
-    color: AMBAR,
+    color: AZUL_SERENO,
     fontWeight: '600',
     fontSize: 13,
   },
   botonSugerencia: {
+    backgroundColor: '#F8FAFC',
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: BORDE,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 16,
+    borderRadius: 14,
   },
   textoSugerencia: {
-    color: '#D1D5DB',
+    color: TEXTO_SECUNDARIO,
     fontSize: 12,
   },
   botonIr: {
-    backgroundColor: AMBAR,
-    paddingHorizontal: 16,
+    backgroundColor: SALVIA,
+    paddingHorizontal: 15,
     paddingVertical: 8,
-    borderRadius: 18,
+    borderRadius: 16,
   },
-  botonPanico: {
-    backgroundColor: ROJO,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 22,
+  cajaMensaje: {
+    backgroundColor: AMBAR_FONDO,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: '#F2DEA8',
+  },
+  textoMensaje: {
+    color: AMBAR_SUAVE,
+    fontSize: 13,
   },
   tarjeta: {
     backgroundColor: SUPERFICIE,
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#263147',
+    borderColor: BORDE,
     gap: 4,
   },
   tarjetaNav: {
-    backgroundColor: '#1F2A44',
+    backgroundColor: SALVIA_FONDO,
     padding: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#3B4F7D',
+    borderColor: '#A9D6CB',
     gap: 4,
-  },
-  tarjetaMapa: {
-    backgroundColor: '#141B29',
-    padding: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#263147',
   },
   cajaMapa: {
     width: '100%',
     height: 230,
     borderRadius: 10,
     overflow: 'hidden',
-    backgroundColor: '#1B2436',
+    backgroundColor: '#E2E8F0',
     marginTop: 6,
+    borderWidth: 1,
+    borderColor: BORDE,
   },
   botonZoom: {
-    backgroundColor: '#263147',
+    backgroundColor: SUPERFICIE_SUAVE,
     width: 30,
     height: 28,
     borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: BORDE,
   },
   textoZoom: {
-    color: AMBAR,
+    color: TEXTO_PRINCIPAL,
     fontSize: 16,
     fontWeight: '700',
   },
   barraInferior: {
     flexDirection: 'row',
-    backgroundColor: '#121826',
+    backgroundColor: SUPERFICIE,
     borderTopWidth: 1,
-    borderTopColor: '#222C40',
+    borderTopColor: BORDE,
     paddingVertical: 6,
   },
   itemBarra: {
@@ -1088,7 +1224,7 @@ const estilos = StyleSheet.create({
     paddingVertical: 4,
   },
   itemBarraActivo: {
-    backgroundColor: 'rgba(252,163,17,0.1)',
+    backgroundColor: SALVIA_FONDO,
     borderRadius: 12,
     marginHorizontal: 8,
   },
@@ -1096,13 +1232,13 @@ const estilos = StyleSheet.create({
     fontSize: 18,
   },
   textoBarra: {
-    color: '#9CA3AF',
+    color: TEXTO_SECUNDARIO,
     fontSize: 12,
     marginTop: 2,
   },
   modalFondo: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.65)',
+    backgroundColor: 'rgba(15,23,42,0.45)',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
@@ -1114,30 +1250,22 @@ const estilos = StyleSheet.create({
     width: '100%',
     maxWidth: 360,
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: BORDE,
     gap: 10,
   },
   modalTitulo: {
-    color: '#FFFFFF',
+    color: TEXTO_PRINCIPAL,
     fontSize: 18,
     fontWeight: '700',
   },
   modalTexto: {
-    color: '#E5E7EB',
+    color: TEXTO_SECUNDARIO,
     fontSize: 14,
   },
   modalBotones: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: 16,
+    gap: 12,
     marginTop: 6,
-  },
-  botonModalOk: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  botonModalPeligro: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
   },
 });

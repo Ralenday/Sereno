@@ -1,6 +1,6 @@
 # Sereno — Compañero de viaje discreto (Expo Android/iOS + Wear OS)
 
-Aplicación para **smartphone en Expo (Android / iOS)** y **reloj inteligente (Wear OS)** diseñada para orientar al viajero de manera discreta sin tener que sacar el teléfono en la calle: búsqueda de alojamiento cercano, planeación de transporte público y costos, mapa de ruta tanto en el teléfono como en el reloj, navegación giro por giro mediante patrones de vibración en la muñeca y funciones de seguridad (avisos de zona de riesgo, detección de inactividad y botón SOS 911).
+Aplicación para **smartphone en Expo (Android / iOS)** y **reloj inteligente (Wear OS)** diseñada para orientar al viajero de manera discreta sin tener que sacar el teléfono en la calle: búsqueda de alojamiento cercano (desde tu ubicación GPS actual o en ciudades incluidas), planeación de transporte público y costos, croquis de ruta con flecha y brújula interactiva tanto en el teléfono como en el reloj, navegación giro por giro mediante patrones de vibración en la muñeca y avisos preventivos de viaje.
 
 El módulo móvil está construido con **Expo (React Native + TypeScript)** para poder ejecutarse directamente en un celular físico (**Android o iOS** mediante Expo Go) mientras en la laptop corre únicamente el emulador del smartwatch (**Wear OS**) enlazado por un puente local (`mobile/puente.js`), evitando saturar la memoria y CPU de la laptop con dos emuladores.
 
@@ -12,6 +12,7 @@ Funciona **100 % con datos abiertos y servicios gratuitos** (OpenStreetMap, OSRM
 
 | Ciudad | Alojamiento | Transporte público | Tarifas | Taxis | Seguridad |
 |---|---|---|---|---|---|
+| **Tu ubicación actual (GPS)** | OpenStreetMap (Overpass en vivo alrededor de tu GPS) | Rutas de transporte mapeadas en OSM cerca de ti + caminata OSRM | Estimadas locales | Estimado por distancia | Avisos propios + horario |
 | **San Luis Río Colorado, Son.** *(Chica)* | OpenStreetMap (copia local + Overpass) | **4 rutas públicas de combi** georreferenciadas (`5 de Mayo`, `Av. Sonora - Parque Industrial`, `Hidalgo y Calle 26`, `Jazmín - IMSS I y II`), con ascenso/descenso en cualquier punto del recorrido | **$14 MXN** general · **$7 MXN** estudiante y adulto mayor | **Por zona / cuadro** desde **$45 MXN** hacia arriba | Reportes propios + horario |
 | **Ciudad de México** *(Grande)* | OpenStreetMap (copia local + Overpass) | Metro, Metrobús, Trolebús, Tren Ligero, Cablebús, Suburbano y camiones (OSM) | Metro $5, Metrobús $6, Trolebús $4, Tren Ligero $3, Cablebús $7, RTP $2, Micro $7.50 | Banderazo $35 + $9/km | Carpetas FGJ (robos a transeúnte en 300 m) + reportes propios |
 

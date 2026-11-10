@@ -27,6 +27,7 @@ export interface EstadoApp {
   ciudad: Ciudad | null;
   fuenteUbicacion: string;
   ubicacion: Punto | null;
+  rumboActual: number | null;
   peticion: string;
   buscando: boolean;
   hoteles: Hotel[];
@@ -48,7 +49,6 @@ export interface EstadoApp {
 const LLEGADA_GIRO_M = 18.0;
 const DESVIO_M = 45.0;
 const RADIO_QUIETO_M = 40.0;
-const ESPERA_RESPUESTA_MS = 120_000;
 const MAX_HOTELES_RELOJ = 8;
 
 export class Motor {
@@ -59,8 +59,9 @@ export class Motor {
 
   private _estado: EstadoApp = {
     ciudad: Ciudades.SLRC,
-    fuenteUbicacion: 'slrc',
+    fuenteUbicacion: 'gps',
     ubicacion: Ciudades.SLRC.centro,
+    rumboActual: null,
     peticion: '',
     buscando: false,
     hoteles: [],
@@ -75,7 +76,7 @@ export class Motor {
     alerta: null,
     soloVibracion: false,
     simulando: false,
-    mensaje: 'Ubicación simulada: centro de San Luis Río Colorado',
+    mensaje: 'Obteniendo ubicación GPS del celular…',
     bitacora: [],
   };
 
@@ -91,12 +92,12 @@ export class Motor {
   private ultimaPos: Punto | null = null;
   private rumboGpsReciente: number | null = null;
   private rumboBrujula: number | null = null;
+  private ultimaLocalidadGps: Punto | null = null;
 
-  // Seguridad
+  // Seguimiento de quietud y riesgo
   private anclaQuieto: Punto | null = null;
   private tiempoAncla = Date.now();
   private ultimoRiesgoPos: Punto | null = null;
-  private timerRespuesta: ReturnType<typeof setTimeout> | null = null;
   private timerSimulacion: ReturnType<typeof setInterval> | null = null;
   private timerPublicar: ReturnType<typeof setTimeout> | null = null;
   private ultimoJsonReloj = '';
@@ -114,7 +115,6 @@ export class Motor {
   iniciar(): void {
     this.enlace.iniciar();
     this.enlace.enComando((c) => this.atender(c));
-    void this.vigilarRiesgo(this._estado.ubicacion!);
     this.programarPublicacion(true);
   }
 
@@ -124,7 +124,13 @@ export class Motor {
   }
 
   actualizarBrujula(grados: number): void {
-    this.rumboBrujula = ((grados % 360) + 360) % 360;
+    const norm = ((grados % 360) + 360) % 360;
+    this.rumboBrujula = norm;
+    if (this._estado.nav && this._estado.ubicacion) {
+      this.actualizarNav(this._estado.ubicacion, this._estado.hotelElegido?.nombre ?? 'Destino');
+    } else if (this._estado.rumboActual === null || Math.abs(this._estado.rumboActual - norm) >= 4) {
+      this.actualizar({ rumboActual: Math.round(norm) });
+    }
   }
 
   private actualizar(parcial: Partial<EstadoApp> | ((prev: EstadoApp) => Partial<EstadoApp>)): void {
@@ -147,7 +153,7 @@ export class Motor {
     this.timerPublicar = setTimeout(() => {
       this.timerPublicar = null;
       void this.enlace.publicar(this.paraReloj(this._estado));
-    }, 350);
+    }, 300);
   }
 
   atender(c: Comando): void {
@@ -177,8 +183,8 @@ export class Motor {
       case 'RECALCULAR':
         void this.recalcular();
         break;
-      case 'PANICO':
-        this.panico();
+      case 'SIMULAR_NAV':
+        this.simular(!this._estado.simulando);
         break;
       case 'ESTOY_BIEN':
         this.estoyBien();
@@ -196,25 +202,32 @@ export class Motor {
   }
 
   usarFuente(fuente: string): void {
-    const ciudad = Ciudades.porId(fuente);
-    if (ciudad) {
+    const ciudadFija = Ciudades.porId(fuente);
+    if (ciudadFija) {
       this.detenerSimulacion();
       this.ultimoRiesgoPos = null;
       this.actualizar({
         fuenteUbicacion: fuente,
-        ciudad,
-        ubicacion: ciudad.centro,
+        ciudad: ciudadFija,
+        ubicacion: ciudadFija.centro,
         riesgo: null,
-        mensaje: `Ubicación simulada: centro de ${ciudad.nombre}`,
+        mensaje: `Ubicación en ${ciudadFija.nombre} (centro)`,
       });
-      void this.vigilarRiesgo(ciudad.centro);
+      void this.vigilarRiesgo(ciudadFija.centro);
     } else {
+      this.detenerSimulacion();
       this.ultimoRiesgoPos = null;
+      const p = this.ultimaPos ?? this._estado.ubicacion;
+      const ciudad = p ? Ciudades.paraGps(p, this._estado.ciudad?.nombre) : this._estado.ciudad;
       this.actualizar({
         fuenteUbicacion: 'gps',
+        ciudad,
         riesgo: null,
-        mensaje: 'Usando GPS del celular',
+        mensaje: 'Usando tu ubicación GPS actual del celular',
       });
+      if (p) {
+        void this.actualizarLocalidadGps(p);
+      }
     }
   }
 
@@ -227,29 +240,50 @@ export class Motor {
     } else if (anterior && Geo.distancia(anterior, p) > 4) {
       this.rumboGpsReciente = Geo.rumbo(anterior, p);
     }
-    this.ultimaPos = p;
-    const ciudad = Ciudades.detectar(p) ?? e.ciudad;
-    if (ciudad && ciudad.id !== e.ciudad?.id) {
-      this.ultimoRiesgoPos = null;
-      this.actualizar({ riesgo: null });
+    if (!simulada) {
+      this.ultimaPos = p;
     }
-    this.actualizar({ ubicacion: p, ciudad });
+
+    const ciudadConocida = Ciudades.detectar(p);
+    const ciudad =
+      ciudadConocida ??
+      (e.fuenteUbicacion === 'gps'
+        ? Ciudades.paraGps(p, e.ciudad?.id === 'gps_actual' ? e.ciudad.nombre : null)
+        : e.ciudad);
+
+    this.actualizar({
+      ubicacion: p,
+      ciudad,
+      rumboActual: Math.round(this.rumboGpsReciente ?? this.rumboBrujula ?? 0),
+    });
+
+    if (!simulada && e.fuenteUbicacion === 'gps' && !ciudadConocida) {
+      void this.actualizarLocalidadGps(p);
+    }
+
     this.seguridad.registrar(p);
     this.avanzarNav(p);
     this.vigilarQuieto(p);
     void this.vigilarRiesgo(p);
   }
 
+  private async actualizarLocalidadGps(p: Punto): Promise<void> {
+    if (this.ultimaLocalidadGps && Geo.distancia(this.ultimaLocalidadGps, p) < 2000) return;
+    this.ultimaLocalidadGps = p;
+    const nombre = await this.osm.nombreLocalidad(p);
+    if (nombre && this._estado.fuenteUbicacion === 'gps' && !Ciudades.detectar(p)) {
+      this.actualizar({
+        ciudad: Ciudades.paraGps(p, `${nombre} (GPS)`),
+      });
+    }
+  }
+
   async buscar(frase: string): Promise<void> {
     const e = this._estado;
-    const ciudad = e.ciudad ?? (e.ubicacion ? Ciudades.detectar(e.ubicacion) : null);
-    if (!ciudad) {
-      this.actualizar({
-        mensaje: 'Elige una ciudad o activa el GPS (estás fuera de las ciudades soportadas)',
-      });
-      return;
-    }
+    const ubicacionBase = e.ubicacion ?? Ciudades.SLRC.centro;
+    const ciudad = e.ciudad ?? Ciudades.paraGps(ubicacionBase);
     const pet = Interprete.interpretar(frase);
+
     this.actualizar({
       peticion: frase,
       buscando: true,
@@ -257,8 +291,8 @@ export class Motor {
     });
 
     try {
-      let centro = e.ubicacion ?? ciudad.centro;
-      let descripcion = 'cerca de ti';
+      let centro = ubicacionBase;
+      let descripcion = e.fuenteUbicacion === 'gps' ? 'cerca de tu ubicación GPS' : 'cerca de ti';
       if (pet.cercaDe) {
         const lugar = await this.osm.buscarLugar(pet.cercaDe, ciudad);
         if (lugar) {
@@ -267,16 +301,19 @@ export class Motor {
         } else {
           descripcion = `cerca de ti (no encontré "${pet.cercaDe}")`;
         }
-      } else if (pet.cercaDelCentro) {
+      } else if (pet.cercaDelCentro && ciudad.id !== 'gps_actual') {
         centro = ciudad.centro;
         descripcion = 'cerca del centro';
       }
 
-      let lista = await this.osm.hoteles(ciudad, centro, 2_500);
+      let lista = await this.osm.hoteles(ciudad, centro, 3_000);
       if (lista.length < 3) {
-        lista = await this.osm.hoteles(ciudad, centro, 7_000);
+        lista = await this.osm.hoteles(ciudad, centro, 8_000);
       }
-      const desde = e.ubicacion ?? centro;
+      if (lista.length < 2) {
+        lista = await this.osm.hoteles(ciudad, centro, 15_000);
+      }
+      const desde = ubicacionBase;
       lista = lista.map((h) => ({
         ...h,
         distanciaM: Math.round(Geo.distancia(desde, h.punto)),
@@ -322,9 +359,9 @@ export class Motor {
   async elegirHotel(id: string): Promise<void> {
     const e = this._estado;
     const hotel = e.hoteles.find((it) => it.id === id);
-    const ciudad = e.ciudad;
-    if (!hotel || !ciudad) return;
-    const origen = e.ubicacion ?? ciudad.centro;
+    const origen = e.ubicacion ?? e.ciudad?.centro ?? Ciudades.SLRC.centro;
+    const ciudad = e.ciudad ?? Ciudades.paraGps(origen);
+    if (!hotel) return;
 
     this.actualizar({
       hotelElegido: hotel,
@@ -355,7 +392,7 @@ export class Motor {
     const sinTransporte = !rutas.some((r) =>
       r.tramos.some((it) => it.modo !== 'CAMINAR' && it.modo !== 'TAXI'),
     );
-    const extra = esFinal ? '' : ' Buscando camiones…';
+    const extra = esFinal ? '' : ' Buscando transporte cercano…';
     this.actualizar((prev) => {
       if (prev.rutaActiva !== null) return { calculandoRutas: false };
       return {
@@ -509,6 +546,9 @@ export class Motor {
         metrosRestantes: resto,
         minutosRestantes: Math.round(resto / 80.0) + restantesTramos,
         indicacion: this.siguienteTransporte(),
+        rumboObjetivo: Math.round(Geo.rumbo(p, paso.punto)),
+        puntoGiro: paso.punto,
+        simulando: this._estado.simulando,
       };
     } else {
       const d = Math.round(Geo.distancia(p, meta));
@@ -527,6 +567,9 @@ export class Motor {
         metrosRestantes: d,
         minutosRestantes: Math.round(d / this.velocidadMMin(t.modo)) + restantesTramos,
         indicacion: ind,
+        rumboObjetivo: Math.round(Geo.rumbo(p, meta)),
+        puntoGiro: meta,
+        simulando: this._estado.simulando,
       };
     }
     this.actualizar({ nav });
@@ -540,7 +583,7 @@ export class Motor {
 
   private flecha(p: Punto, objetivo: Punto): number {
     const r = Geo.rumbo(p, objetivo);
-    const ref = this.rumboGpsReciente ?? this.rumboBrujula;
+    const ref = this.rumboBrujula ?? this.rumboGpsReciente;
     return ref !== null ? Geo.diferenciaAngulo(r, ref) : Math.round(r);
   }
 
@@ -560,7 +603,10 @@ export class Motor {
       return;
     }
     this.detenerSimulacion();
-    this.actualizar({ simulando: true });
+    this.actualizar((prev) => ({
+      simulando: true,
+      nav: prev.nav ? { ...prev.nav, simulando: true } : null,
+    }));
     this.timerSimulacion = setInterval(() => {
       const t = this.tramos[this.tramoIdx];
       const aqui = this._estado.ubicacion;
@@ -589,7 +635,7 @@ export class Motor {
               lat: aqui.lat + ((objetivo.lat - aqui.lat) * paso) / d,
               lon: aqui.lon + ((objetivo.lon - aqui.lon) * paso) / d,
             };
-      this.nuevaUbicacion(siguiente, null, true);
+      this.nuevaUbicacion(siguiente, Geo.rumbo(aqui, siguiente), true);
     }, 1000);
   }
 
@@ -612,24 +658,14 @@ export class Motor {
       this.timerSimulacion = null;
     }
     if (this._estado.simulando) {
-      this.actualizar({ simulando: false });
+      this.actualizar((prev) => ({
+        simulando: false,
+        nav: prev.nav ? { ...prev.nav, simulando: false } : null,
+      }));
     }
-  }
-
-  panico(): void {
-    const p = this._estado.ubicacion;
-    const coords = p ? ` (${p.lat.toFixed(4)}, ${p.lon.toFixed(4)})` : '';
-    this.seguridad.marcar911();
-    const texto = `SOS activado${coords}. Marcando al 911 en el teléfono.`;
-    this.actualizar({ alerta: this.crearAlerta('PANICO_ENVIADO', texto) });
-    this.anotar(`SOS: ${texto}`);
   }
 
   estoyBien(): void {
-    if (this.timerRespuesta) {
-      clearTimeout(this.timerRespuesta);
-      this.timerRespuesta = null;
-    }
     this.anclaQuieto = this._estado.ubicacion;
     this.tiempoAncla = Date.now();
     this.actualizar({ alerta: null });
@@ -644,7 +680,7 @@ export class Motor {
     if (!p) return;
     this.riesgo.reportar(p);
     this.actualizar({
-      mensaje: 'Zona marcada como insegura. Te avisaré si vuelves a pasar.',
+      mensaje: 'Zona marcada como precaución. Te avisaré si vuelves a pasar.',
     });
   }
 
@@ -661,17 +697,8 @@ export class Motor {
     if (minutos < this.seguridad.minutosQuieto) return;
 
     this.actualizar({
-      alerta: this.crearAlerta('QUIETO', `Llevas ${minutos} min sin moverte. ¿Estás bien?`, true),
+      alerta: this.crearAlerta('QUIETO', `Llevas ${minutos} min sin avanzar. ¿Todo bien?`, true),
     });
-    if (this.timerRespuesta) clearTimeout(this.timerRespuesta);
-    this.timerRespuesta = setTimeout(() => {
-      if (this._estado.alerta?.tipo === 'QUIETO') {
-        this.seguridad.marcar911();
-        this.actualizar({
-          alerta: this.crearAlerta('PANICO_ENVIADO', `Sin respuesta tras ${minutos} min quieto: marcando al 911.`),
-        });
-      }
-    }, ESPERA_RESPUESTA_MS);
   }
 
   private async vigilarRiesgo(p: Punto): Promise<void> {
@@ -691,7 +718,7 @@ export class Motor {
     this.actualizar({
       riesgo: ev,
       ...(sube && ev.nivel !== 'DESCONOCIDO'
-        ? { alerta: this.crearAlerta('RIESGO', `Zona de riesgo ${ev.nivel.toLowerCase()}: ${ev.motivo}`) }
+        ? { alerta: this.crearAlerta('RIESGO', `Precaución (${ev.nivel.toLowerCase()}): ${ev.motivo}`) }
         : {}),
     });
   }
@@ -706,7 +733,7 @@ export class Motor {
           ? t.trazo
           : ([t.desdePunto, t.hastaPunto].filter(Boolean) as Punto[]);
       if (pts.length >= 2) {
-        trazos.push({ modo: t.modo, puntos: Geo.simplificar(pts, 18.0) });
+        trazos.push({ modo: t.modo, puntos: Geo.simplificar(pts, 14.0) });
       }
     }
     const mapa: MapaReloj | null =

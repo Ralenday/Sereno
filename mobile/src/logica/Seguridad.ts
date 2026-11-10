@@ -1,4 +1,3 @@
-import { Linking } from 'react-native';
 import type { Punto } from '../core/Modelos.ts';
 
 export class Seguridad {
@@ -8,10 +7,6 @@ export class Seguridad {
 
   private historial: Array<{ t: number; lat: number; lon: number }> = [];
   private ultimoHistorial = 0;
-
-  marcar911(): void {
-    void Linking.openURL('tel:911').catch(() => {});
-  }
 
   registrar(p: Punto): void {
     const ahora = Date.now();

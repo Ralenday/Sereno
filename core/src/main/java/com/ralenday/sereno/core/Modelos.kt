@@ -78,9 +78,15 @@ data class NavActual(
     val minutosRestantes: Int,
     /** Instrucción del tramo de transporte actual, p. ej. "Sube a Metro L2 dir. Cuatro Caminos". */
     val indicacion: String? = null,
+    /** Rumbo geográfico absoluto (0 = norte, 90 = este) hacia el siguiente giro, para la brújula local del reloj. */
+    val rumboObjetivo: Int = 0,
+    /** Coordenada del siguiente giro para destacarlo en el croquis del reloj. */
+    val puntoGiro: Punto? = null,
+    /** Si el simulador de caminata está activo. */
+    val simulando: Boolean = false,
 )
 
-enum class TipoAlerta { RIESGO, QUIETO, DESVIO, INFO, PANICO_ENVIADO }
+enum class TipoAlerta { RIESGO, QUIETO, DESVIO, INFO }
 
 data class Alerta(val id: Long, val tipo: TipoAlerta, val texto: String, val pideRespuesta: Boolean = false)
 
@@ -149,7 +155,7 @@ data class EstadoReloj(
 
 enum class TipoComando {
     PEDIR_ESTADO, BUSCAR_HOTELES, ORDENAR, ELEGIR_HOTEL, ELEGIR_RUTA, INICIAR_NAV, DETENER_NAV,
-    RECALCULAR, PANICO, ESTOY_BIEN, SOLO_VIBRACION,
+    RECALCULAR, SIMULAR_NAV, ESTOY_BIEN, SOLO_VIBRACION,
 }
 
 data class Comando(val tipo: TipoComando, val arg: String? = null) {
@@ -217,12 +223,18 @@ private fun NavActual.aJson() = JSONObject().apply {
     put("destino", destino); put("giro", giro.name); put("calle", calle); put("mGiro", metrosAlGiro)
     put("flecha", flechaGrados); put("mRest", metrosRestantes); put("minRest", minutosRestantes)
     put("ind", indicacion ?: JSONObject.NULL)
+    put("rumboObj", rumboObjetivo)
+    put("pGiro", puntoGiro?.aJson() ?: JSONObject.NULL)
+    put("sim", simulando)
 }
 
 private fun JSONObject.aNav() = NavActual(
     destino = getString("destino"), giro = Giro.valueOf(getString("giro")), calle = getString("calle"),
     metrosAlGiro = getInt("mGiro"), flechaGrados = getInt("flecha"), metrosRestantes = getInt("mRest"),
     minutosRestantes = getInt("minRest"), indicacion = texto("ind"),
+    rumboObjetivo = optInt("rumboObj", 0),
+    puntoGiro = punto("pGiro"),
+    simulando = optBoolean("sim", false),
 )
 
 private fun Alerta.aJson() = JSONObject().put("id", id).put("tipo", tipo.name).put("texto", texto).put("resp", pideRespuesta)

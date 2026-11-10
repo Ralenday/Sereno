@@ -32,6 +32,7 @@ test('Ciudades: detección y tarifas de taxi SLRC por zona', () => {
   assert.equal(Ciudades.detectar({ lat: 32.46, lon: -114.77 })?.id, 'slrc');
   assert.equal(Ciudades.detectar({ lat: 19.40, lon: -99.15 })?.id, 'cdmx');
   assert.equal(Ciudades.detectar({ lat: 32.62, lon: -115.45 }), null);
+  assert.equal(Ciudades.paraGps({ lat: 32.62, lon: -115.45 }, 'Mexicali (GPS)').id, 'gps_actual');
 
   const centro = Ciudades.SLRC.centro;
   const cerca = { lat: 32.481, lon: -114.775 };

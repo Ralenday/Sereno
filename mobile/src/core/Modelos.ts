@@ -101,9 +101,12 @@ export interface NavActual {
   metrosRestantes: number;
   minutosRestantes: number;
   indicacion?: string | null;
+  rumboObjetivo?: number;
+  puntoGiro?: Punto | null;
+  simulando?: boolean;
 }
 
-export type TipoAlerta = 'RIESGO' | 'QUIETO' | 'DESVIO' | 'INFO' | 'PANICO_ENVIADO';
+export type TipoAlerta = 'RIESGO' | 'QUIETO' | 'DESVIO' | 'INFO';
 
 export interface Alerta {
   id: number;
@@ -148,7 +151,7 @@ export type TipoComando =
   | 'INICIAR_NAV'
   | 'DETENER_NAV'
   | 'RECALCULAR'
-  | 'PANICO'
+  | 'SIMULAR_NAV'
   | 'ESTOY_BIEN'
   | 'SOLO_VIBRACION';
 
@@ -211,6 +214,9 @@ export function estadoRelojAJson(e: EstadoReloj): Record<string, unknown> {
           mRest: Math.round(e.nav.metrosRestantes),
           minRest: Math.round(e.nav.minutosRestantes),
           ind: e.nav.indicacion ?? null,
+          rumboObj: Math.round(e.nav.rumboObjetivo ?? 0),
+          pGiro: e.nav.puntoGiro ? { lat: e.nav.puntoGiro.lat, lon: e.nav.puntoGiro.lon } : null,
+          sim: Boolean(e.nav.simulando),
         }
       : null,
     alerta: e.alerta

@@ -108,6 +108,36 @@ export const Ciudades = {
     return mejor;
   },
 
+  /**
+   * Devuelve la ciudad soportada si estás dentro de su radio, o crea una ciudad dinámica centrada
+   * en tu ubicación GPS real para poder buscar hoteles y rutas donde sea que estés.
+   */
+  paraGps(p: Punto, nombreDetectado?: string | null): Ciudad {
+    const conocida = Ciudades.detectar(p);
+    if (conocida) return conocida;
+    return {
+      id: 'gps_actual',
+      nombre: nombreDetectado?.trim() || 'Tu ubicación GPS',
+      tamano: 'GPS actual',
+      centro: p,
+      radioKm: 25.0,
+      tarifas: { BUS: 12.0, MICRO: 12.0, METRO: 5.0 },
+      tarifasVerificadas: false,
+      taxiBanderazo: 40.0,
+      taxiPorKm: 10.0,
+      taxiPorZona: false,
+      preciosNoche: {
+        hotel: 1100,
+        motel: 700,
+        guest_house: 800,
+        hostel: 450,
+        apartment: 950,
+      },
+      fuenteRiesgo: 'SOLO_LOCAL',
+      transporteEnOsm: 'Consulta en vivo en OpenStreetMap alrededor de tu GPS',
+    };
+  },
+
   porId(id?: string | null): Ciudad | null {
     return Ciudades.todas.find((c) => c.id === id) ?? null;
   },

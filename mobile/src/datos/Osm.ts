@@ -102,14 +102,28 @@ export class Osm {
     throw ultimoError ?? new Error('Overpass no disponible');
   }
 
+  /**
+   * Busca alojamiento en `radioM` alrededor de `centro`.
+   * Si estás en una ciudad con copia local (SLRC/CDMX) la usa al instante; si estás usando tu GPS
+   * en otra zona o la copia local no cubre tu coordenada actual, consulta Overpass en vivo.
+   */
   async hoteles(ciudad: Ciudad, centro: Punto, radioM: number): Promise<Hotel[]> {
     const local = COPIAS_HOTELES[ciudad.id];
-    const json =
-      local ??
-      (await this.overpass(
-        `[out:json][timeout:40];nwr["tourism"~"^(hotel|motel|hostel|guest_house|apartment)$"](around:${radioM},${centro.lat},${centro.lon});out center tags 150;`,
-      ));
-    return this.parsearHoteles(json, ciudad, centro).filter((h) => h.distanciaM <= radioM);
+    let enCopia: Hotel[] = [];
+    if (local) {
+      enCopia = this.parsearHoteles(local, ciudad, centro).filter((h) => h.distanciaM <= radioM);
+      if (enCopia.length >= 2) return enCopia;
+    }
+    try {
+      const vivo = await this.overpass(
+        `[out:json][timeout:35];nwr["tourism"~"^(hotel|motel|hostel|guest_house|apartment)$"](around:${radioM},${centro.lat},${centro.lon});out center tags 150;`,
+      );
+      const enVivo = this.parsearHoteles(vivo, ciudad, centro).filter((h) => h.distanciaM <= radioM);
+      if (enVivo.length > 0) return enVivo;
+    } catch {
+      // Si Overpass falla sin conexión, devolver lo que haya en copia local
+    }
+    return enCopia;
   }
 
   parsearHoteles(json: any, ciudad: Ciudad, centro: Punto): Hotel[] {
@@ -127,7 +141,7 @@ export class Osm {
       if (!p) continue;
       const tipo = String(tags.tourism ?? 'hotel');
       const estrellasStr = String(tags.stars ?? '').slice(0, 1);
-      const estrellas = Number.isInteger( parseInt(estrellasStr, 10) ) ? parseInt(estrellasStr, 10) : 0;
+      const estrellas = Number.isInteger(parseInt(estrellasStr, 10)) ? parseInt(estrellasStr, 10) : 0;
       const nombre =
         typeof tags.name === 'string' && tags.name.trim() !== ''
           ? tags.name.trim()
@@ -236,8 +250,8 @@ export class Osm {
   }
 
   async lineasDeCamion(origen: Punto, destino: Punto, radioM = 700): Promise<Linea[]> {
-    const modos = '^(bus|trolleybus|minibus|share_taxi)$';
-    const q = `[out:json][timeout:60];node(around:${radioM},${origen.lat},${origen.lon})->.a;rel(bn.a)[type=route][route~"${modos}"]->.ra;node(around:${radioM},${destino.lat},${destino.lon})->.b;rel(bn.b)[type=route][route~"${modos}"]->.rb;rel.ra.rb->.r;.r out body;node(r.r);out body;`;
+    const modos = '^(bus|trolleybus|minibus|share_taxi|subway|light_rail|tram)$';
+    const q = `[out:json][timeout:45];node(around:${radioM},${origen.lat},${origen.lon})->.a;rel(bn.a)[type=route][route~"${modos}"]->.ra;node(around:${radioM},${destino.lat},${destino.lon})->.b;rel(bn.b)[type=route][route~"${modos}"]->.rb;rel.ra.rb->.r;.r out body;node(r.r);out body;`;
     const json = await this.overpass(q);
     return this.parsearLineas(json);
   }
@@ -260,6 +274,32 @@ export class Osm {
       nombre: String(r.display_name ?? '').split(',')[0],
       punto: { lat: Number(r.lat), lon: Number(r.lon) },
     };
+  }
+
+  async nombreLocalidad(p: Punto): Promise<string | null> {
+    try {
+      const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=12&lat=${p.lat}&lon=${p.lon}`;
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent': 'Sereno/0.1 (proyecto escolar; Expo)',
+          'Accept-Language': 'es-MX,es',
+        },
+      });
+      if (!res.ok) return null;
+      const json = await res.json();
+      const dir = json?.address;
+      if (!dir) return null;
+      return (
+        dir.city ||
+        dir.town ||
+        dir.municipality ||
+        dir.village ||
+        dir.county ||
+        ''
+      ).trim() || null;
+    } catch {
+      return null;
+    }
   }
 
   async alcaldia(p: Punto): Promise<string | null> {
