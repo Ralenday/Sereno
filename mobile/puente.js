@@ -37,10 +37,15 @@ function configurarAdbForward() {
       const lineas = stdout
         .split('\n')
         .slice(1)
-        .map((l) => l.trim().split(/\s+/)[0])
-        .filter(Boolean);
+        .map((l) => l.trim().split(/\s+/))
+        .filter((p) => p[1] === 'device')
+        .map((p) => p[0]);
       for (const serial of lineas) {
-        execFile(bin, ['-s', serial, 'forward', `tcp:${PUERTO_RELOJ_TCP}`, `tcp:${PUERTO_RELOJ_TCP}`], () => {});
+        // Solo el reloj: si también corre un emulador de teléfono, no debe quedarse con el puerto 19887
+        execFile(bin, ['-s', serial, 'shell', 'getprop', 'ro.build.characteristics'], (e2, carac) => {
+          if (e2 || !String(carac).includes('watch')) return;
+          execFile(bin, ['-s', serial, 'forward', `tcp:${PUERTO_RELOJ_TCP}`, `tcp:${PUERTO_RELOJ_TCP}`], () => {});
+        });
       }
     });
   }

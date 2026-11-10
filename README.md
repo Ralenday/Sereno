@@ -18,23 +18,44 @@ Funciona **100 % con datos abiertos y servicios gratuitos** (OpenStreetMap, OSRM
 
 ---
 
+## Funciones principales
+
+- **Búsqueda de hospedaje sin escribir**: botón *Buscar hospedaje aquí* o *Cerca de mi GPS*, y filtros **Cerca / $ Precio / ★ Valoración** (en teléfono y reloj).
+- **Precios y valoraciones variadas por hotel**: OpenStreetMap no publica precios ni reseñas, así que `Precios.ts` los estima de forma determinista (mismo hotel = mismo valor) usando estrellas de OSM, cadena hotelera reconocida, palabras del nombre, zonas caras de la ciudad (Polanco, Reforma, Condesa…) y una variación propia de cada hotel. Se muestran como *≈ estimados*.
+- **Rutas de transporte público y costos**: caminata OSRM, combis de SLRC, Metro/Metrobús en CDMX, taxis por zona o por km.
+- **Brújula del celular en vivo en el reloj**: canal ligero `/rumbo` (~12 lecturas/s, socket TCP persistente) para que la flecha y el croquis del reloj giren sin retraso y con animación suave.
+- **Avisos con vibración** (celular y reloj, patrón distinto por tipo):
+  - ⚠️ Zona de robos (datos FGJ CDMX): 3 vibraciones largas.
+  - 🚏 Tu parada: "Prepárate" a 700 m y "Bájate en la próxima" a 250 m: 2 cortas + 1 larga.
+  - Inactividad ("¿estás bien?") y desvío de ruta: 2 medias.
+- **Letra ajustable en el reloj**: botón *Aa Letra* (Normal / Grande / Muy grande).
+- **Mapa del teléfono** con teselas de OpenStreetMap guardadas en caché local (7 días) y User‑Agent propio, como pide su política de uso.
+
+---
+
 ## Capturas de pantalla
 
-### San Luis Río Colorado — Mapa, rutas de combi y navegación
+> Tomadas con los emuladores de Android Studio (teléfono `Medium_Phone` con Expo Go y reloj `Wear_OS_XL_Round`) conectados por el puente local.
 
-| Mapa y ruta en el teléfono | Detalle de ruta y navegación |
-|---|---|
-| ![Mapa y ruta en SLRC](docs/capturas/slrc_telefono_mapa_ruta.png) | ![Detalle de ruta en SLRC](docs/capturas/slrc_telefono_detalle_rutas.png) |
+### Teléfono (Expo Go)
 
-| Reloj: Inicio | Reloj: Hoteles | Reloj: Rutas de combi | Reloj: Mapa de ruta | Reloj: Navegación por giro |
-|---|---|---|---|---|
-| ![Reloj inicio](docs/capturas/slrc_reloj_inicio.png) | ![Reloj hoteles](docs/capturas/slrc_reloj_hoteles.png) | ![Reloj rutas](docs/capturas/slrc_reloj_rutas.png) | ![Reloj mapa](docs/capturas/slrc_reloj_mapa.png) | ![Reloj navegación](docs/capturas/slrc_reloj_navegacion.png) |
+| Inicio y mapa (SLRC) | Croquis y rutas de combi | Navegación guiada |
+|---|---|---|
+| ![Inicio y mapa](docs/capturas/telefono_inicio_mapa.png) | ![Croquis y rutas](docs/capturas/telefono_croquis_rutas.png) | ![Navegación](docs/capturas/telefono_navegacion.png) |
 
-### Ciudad de México y pestaña de Seguridad
+| Aviso de zona (CDMX, FGJ) | Aviso de parada para bajar | Pestaña de avisos y vibración |
+|---|---|---|
+| ![Aviso de zona](docs/capturas/telefono_aviso_zona.png) | ![Tu parada](docs/capturas/telefono_tu_parada.png) | ![Avisos](docs/capturas/telefono_avisos.png) |
 
-| Ciudad de México (Metro / Metrobús + Mapa) | Pestaña de Seguridad (SOS 911, quietud y riesgo) |
-|---|---|
-| ![CDMX en teléfono](docs/capturas/cdmx_telefono_mapa_ruta.png) | ![Seguridad en teléfono](docs/capturas/telefono_seguridad.png) |
+### Reloj (Wear OS)
+
+| Inicio | Hoteles por precio | Rutas | Navegación |
+|---|---|---|---|
+| ![Reloj inicio](docs/capturas/reloj_inicio.png) | ![Reloj hoteles](docs/capturas/reloj_hoteles.png) | ![Reloj rutas](docs/capturas/reloj_rutas.png) | ![Reloj navegación](docs/capturas/reloj_navegacion.png) |
+
+| Croquis con brújula | Aviso "Tu parada" | Letra muy grande |
+|---|---|---|
+| ![Reloj croquis](docs/capturas/reloj_croquis.png) | ![Reloj tu parada](docs/capturas/reloj_tu_parada.png) | ![Reloj letra grande](docs/capturas/reloj_letra_grande.png) |
 
 ---
 
@@ -42,31 +63,33 @@ Funciona **100 % con datos abiertos y servicios gratuitos** (OpenStreetMap, OSRM
 
 ```text
 mobile/  (teléfono en Expo React Native + TypeScript — Android / iOS / Web)
-  App.tsx                 Interfaz principal con mapa OpenStreetMap + SVG y pestañas Viaje / Seguridad / Reloj
+  App.tsx                 Interfaz principal con mapa OpenStreetMap + SVG y pestañas Viaje / Avisos / Reloj
   puente.js               Puente local en Node.js: HTTP 19888 (Expo Go) <-> TCP 19886/19887 (Emulador Wear OS)
   src/core/Modelos.ts     Modelos y serialización JSON compatible con el reloj (EstadoReloj, Comando, Ruta, Hotel)
   src/core/Geo.ts         Haversine, rumbo, distancia a polilínea, codificación/decodificación y simplificación
-  src/datos/Ciudades.ts   Configuración y tarifas de San Luis Río Colorado y Ciudad de México
+  src/datos/Ciudades.ts   Configuración, tarifas y zonas de precio de San Luis Río Colorado y Ciudad de México
+  src/datos/Precios.ts    Estimación determinista de precio, estrellas y calificación de cada alojamiento
   src/datos/Osm.ts        Overpass, Nominatim, snapshots locales y rutas locales (rutas_locales_slrc.json)
   src/datos/Ruteo.ts      Rutas a pie giro por giro con OSRM (routing.openstreetmap.de)
   src/datos/Transporte.ts Planificador de transporte público (viajes directos y con 1 transbordo + trazo en mapa)
   src/datos/Riesgo.ts     Evaluación de riesgo (FGJ CDMX por alcaldía + reportes locales)
-  src/logica/Interprete.ts Intérprete en lenguaje natural por reglas ("hotel barato cerca del centro…")
-  src/logica/EnlaceExpo.ts Cliente HTTP que sincroniza automáticamente el celular en Expo con puente.js
+  src/logica/Interprete.ts Intérprete por reglas de peticiones como "hotel barato cerca" (lo usa el reloj)
+  src/logica/EnlaceExpo.ts Cliente HTTP hacia puente.js: estado completo + canal rápido de brújula (/rumbo)
+  src/logica/Teselas.ts   Descarga y caché local de teselas OSM con User-Agent propio
   src/logica/Motor.ts     Orquestador principal, GPS/brújula (expo-location), simulador de caminata y alertas
-  src/logica/Seguridad.ts Marcación rápida al 911, detección de inactividad e historial local
+  src/logica/Seguridad.ts Preferencias de avisos (inactividad, zona, vibración) e historial local
   assets/datos/           Copias locales OSM (hoteles_*.json, lineas_*.json) y rutas_locales_*.json
-  test/logica.test.ts     Pruebas unitarias de intérprete, ruteo, snapshots OSM y transporte
+  test/logica.test.ts     Pruebas unitarias de intérprete, ruteo, snapshots OSM, transporte y precios
 
 core/    (librería Kotlin de protocolo y geometría para el reloj)
   Modelos.kt        Hotel, Ruta, Tramo, TrazoMapa, MapaReloj, NavActual, Alerta, EstadoReloj, Comando
   Geo.kt            Haversine, rumbo, distancia a polilínea y codificación de polilíneas
-  Enlace.kt         Wearable Data Layer (/sereno/estado y /sereno/cmd) + puente TCP (19886/19887) para emulador
+  Enlace.kt         Wearable Data Layer (/sereno/estado y /sereno/cmd) + puente TCP (19886/19887) y brújula en vivo
   EnlaceServicio.kt WearableListenerService
 
 wear/    (reloj Wear OS: interfaz ligera en la muñeca y guía háptica)
-  MainActivity.kt   Pantallas de Inicio, Hoteles, Rutas, Mapa vectorial circular, Navegación con flecha y Alerta
-  RelojApp.kt       Patrones de vibración diferenciados por tipo de giro y alertas
+  MainActivity.kt   Inicio, Hoteles (Cerca/$/★), Rutas, Croquis con brújula, Navegación, Alertas y tamaño de letra
+  RelojApp.kt       Patrones de vibración por giro, zona de riesgo, parada para bajar y avisos
 ```
 
 ---

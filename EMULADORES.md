@@ -68,3 +68,29 @@ npm start
   - `● Puente local activo (http://<IP-laptop>:19888)`
   - Bitácora en vivo con los comandos que manda el reloj.
 - En la laptop: `adb -s $W logcat | grep SerenoEnlace` → `Estado recibido: N hoteles, M rutas, nav=…`
+
+## Opcional: teléfono emulado con Expo Go (sin celular físico, p. ej. para capturas)
+
+Se pueden correr los dos emuladores a la vez (necesita ~8 GB de RAM libres):
+
+```bash
+E=~/Android/Sdk/emulator/emulator; A=~/Android/Sdk/platform-tools/adb
+$E -avd Wear_OS_XL_Round -port 5554 &      # reloj
+$E -avd Medium_Phone_API_37.0 -port 5556 & # teléfono
+P=emulator-5556
+
+# Expo Go para el SDK del proyecto (58): https://expo.dev/go  → instalar el APK en el teléfono
+$A -s $P install -r -g Expo-Go-58.x.apk
+
+# El teléfono emulado llega a Metro y al puente por adb reverse (más estable que 10.0.2.2)
+$A -s $P reverse tcp:8081 tcp:8081
+$A -s $P reverse tcp:19888 tcp:19888
+
+cd mobile && npm run puente &   # el puente solo redirige el 19887 al emulador que sea reloj
+cd mobile && npm start          # en otra terminal
+$A -s $P shell am start -a android.intent.action.VIEW -d exp://localhost:8081 host.exp.exponent
+```
+
+- Ubicación del teléfono emulado: `$A -s $P emu geo fix -114.7790 32.4840` (SLRC) o usa los chips de ciudad.
+- Capturas: `$A -s $P exec-out screencap -p > telefono.png` y `$A -s emulator-5554 exec-out screencap -p > reloj.png`
+  (o el botón de cámara del panel del emulador en Android Studio).

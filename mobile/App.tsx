@@ -25,6 +25,7 @@ import { NOMBRE_TIPO } from './src/datos/Osm.ts';
 import { ANIO_DATOS } from './src/datos/Riesgo.ts';
 import { PUERTO_PUENTE_HTTP, PUERTO_RELOJ_TCP, PUERTO_TELEFONO_TCP } from './src/logica/EnlaceExpo.ts';
 import { type EstadoApp, Motor } from './src/logica/Motor.ts';
+import { teselaLocal } from './src/logica/Teselas.ts';
 
 const TITULOS_ALERTA: Record<string, string> = {
   RIESGO: '⚠️ Aviso de zona',
@@ -41,6 +42,7 @@ const PATRONES_VIBRACION: Record<string, number[]> = {
   QUIETO: [0, 400, 300, 400],
   DESVIO: [0, 200, 150, 200],
 };
+
 
 // Paleta suave y descansada para la vista (tonos pizarra, salvia y azul sereno sobre fondo claro cálido)
 const FONDO = '#F2F5F8';
@@ -261,6 +263,28 @@ export default function App() {
         </View>
       </Modal>
     </SafeAreaView>
+  );
+}
+
+/** Una tesela de OSM servida desde la caché local (ver src/logica/Teselas.ts). */
+function TeselaOsm({ z, x, y, left, top }: { z: number; x: number; y: number; left: number; top: number }) {
+  const [uri, setUri] = useState<string | null>(null);
+  useEffect(() => {
+    let vivo = true;
+    setUri(null);
+    void teselaLocal(z, x, y).then((u) => {
+      if (vivo) setUri(u);
+    });
+    return () => {
+      vivo = false;
+    };
+  }, [z, x, y]);
+  if (!uri) return null;
+  return (
+    <Image
+      source={{ uri }}
+      style={{ position: 'absolute', left, top, width: 256, height: 256, opacity: 0.92 }}
+    />
   );
 }
 
@@ -590,14 +614,16 @@ function TarjetaMapaTelefono({
   const tx0 = Math.floor(cx);
   const ty0 = Math.floor(cy);
   const maxTile = (1 << z) - 1;
-  const teselas: Array<{ key: string; url: string; left: number; top: number }> = [];
+  const teselas: Array<{ key: string; z: number; x: number; y: number; left: number; top: number }> = [];
   for (let dx = -1; dx <= 1; dx++) {
     for (let dy = -1; dy <= 1; dy++) {
       const tx = Math.max(0, Math.min(maxTile, tx0 + dx));
       const ty = Math.max(0, Math.min(maxTile, ty0 + dy));
       teselas.push({
         key: `${z}/${tx}/${ty}/${dx}/${dy}`,
-        url: `https://tile.openstreetmap.org/${z}/${tx}/${ty}.png`,
+        z,
+        x: tx,
+        y: ty,
         left: Math.round(layout.w / 2 + (tx0 + dx - cx) * 256),
         top: Math.round(layout.h / 2 + (ty0 + dy - cy) * 256),
       });
@@ -640,18 +666,7 @@ function TarjetaMapaTelefono({
         }}
       >
         {teselas.map((t) => (
-          <Image
-            key={t.key}
-            source={{ uri: t.url }}
-            style={{
-              position: 'absolute',
-              left: t.left,
-              top: t.top,
-              width: 256,
-              height: 256,
-              opacity: 0.92,
-            }}
-          />
+          <TeselaOsm key={t.key} z={t.z} x={t.x} y={t.y} left={t.left} top={t.top} />
         ))}
 
         <Svg width={layout.w} height={layout.h} style={StyleSheet.absoluteFill}>
