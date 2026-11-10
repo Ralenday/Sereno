@@ -1,6 +1,8 @@
-# Sereno — Compañero de viaje discreto (Android + Wear OS)
+# Sereno — Compañero de viaje discreto (Expo Android/iOS + Wear OS)
 
-Aplicación para **smartphone (Android)** y **reloj inteligente (Wear OS)** diseñada para orientar al viajero de manera discreta sin tener que sacar el teléfono en la calle: búsqueda de alojamiento cercano por voz o texto, planeación de transporte público y costos, mapa de ruta tanto en el teléfono como en el reloj, navegación giro por giro mediante patrones de vibración en la muñeca y funciones de seguridad (avisos de zona de riesgo, detección de inactividad y botón SOS 911).
+Aplicación para **smartphone en Expo (Android / iOS)** y **reloj inteligente (Wear OS)** diseñada para orientar al viajero de manera discreta sin tener que sacar el teléfono en la calle: búsqueda de alojamiento cercano, planeación de transporte público y costos, mapa de ruta tanto en el teléfono como en el reloj, navegación giro por giro mediante patrones de vibración en la muñeca y funciones de seguridad (avisos de zona de riesgo, detección de inactividad y botón SOS 911).
+
+El módulo móvil está construido con **Expo (React Native + TypeScript)** para poder ejecutarse directamente en un celular físico (**Android o iOS** mediante Expo Go) mientras en la laptop corre únicamente el emulador del smartwatch (**Wear OS**) enlazado por un puente local (`mobile/puente.js`), evitando saturar la memoria y CPU de la laptop con dos emuladores.
 
 Funciona **100 % con datos abiertos y servicios gratuitos** (OpenStreetMap, OSRM FOSSGIS y Portal de Datos Abiertos de la CDMX).
 
@@ -15,7 +17,7 @@ Funciona **100 % con datos abiertos y servicios gratuitos** (OpenStreetMap, OSRM
 
 ---
 
-## Capturas de pantalla (Emulación local Android + Wear OS)
+## Capturas de pantalla
 
 ### San Luis Río Colorado — Mapa, rutas de combi y navegación
 
@@ -38,55 +40,66 @@ Funciona **100 % con datos abiertos y servicios gratuitos** (OpenStreetMap, OSRM
 ## Arquitectura del proyecto
 
 ```text
-core/    (librería compartida entre teléfono y reloj)
+mobile/  (teléfono en Expo React Native + TypeScript — Android / iOS / Web)
+  App.tsx                 Interfaz principal con mapa OpenStreetMap + SVG y pestañas Viaje / Seguridad / Reloj
+  puente.js               Puente local en Node.js: HTTP 19888 (Expo Go) <-> TCP 19886/19887 (Emulador Wear OS)
+  src/core/Modelos.ts     Modelos y serialización JSON compatible con el reloj (EstadoReloj, Comando, Ruta, Hotel)
+  src/core/Geo.ts         Haversine, rumbo, distancia a polilínea, codificación/decodificación y simplificación
+  src/datos/Ciudades.ts   Configuración y tarifas de San Luis Río Colorado y Ciudad de México
+  src/datos/Osm.ts        Overpass, Nominatim, snapshots locales y rutas locales (rutas_locales_slrc.json)
+  src/datos/Ruteo.ts      Rutas a pie giro por giro con OSRM (routing.openstreetmap.de)
+  src/datos/Transporte.ts Planificador de transporte público (viajes directos y con 1 transbordo + trazo en mapa)
+  src/datos/Riesgo.ts     Evaluación de riesgo (FGJ CDMX por alcaldía + reportes locales)
+  src/logica/Interprete.ts Intérprete en lenguaje natural por reglas ("hotel barato cerca del centro…")
+  src/logica/EnlaceExpo.ts Cliente HTTP que sincroniza automáticamente el celular en Expo con puente.js
+  src/logica/Motor.ts     Orquestador principal, GPS/brújula (expo-location), simulador de caminata y alertas
+  src/logica/Seguridad.ts Marcación rápida al 911, detección de inactividad e historial local
+  assets/datos/           Copias locales OSM (hoteles_*.json, lineas_*.json) y rutas_locales_*.json
+  test/logica.test.ts     Pruebas unitarias de intérprete, ruteo, snapshots OSM y transporte
+
+core/    (librería Kotlin de protocolo y geometría para el reloj)
   Modelos.kt        Hotel, Ruta, Tramo, TrazoMapa, MapaReloj, NavActual, Alerta, EstadoReloj, Comando
-  Geo.kt            Haversine, rumbo, distancia a polilínea, codificación/decodificación y simplificación
-  Enlace.kt         Wearable Data Layer (/sereno/estado y /sereno/cmd) + puente TCP (19886/19887) para emuladores
+  Geo.kt            Haversine, rumbo, distancia a polilínea y codificación de polilíneas
+  Enlace.kt         Wearable Data Layer (/sereno/estado y /sereno/cmd) + puente TCP (19886/19887) para emulador
   EnlaceServicio.kt WearableListenerService
 
-mobile/  (teléfono: realiza las consultas, ruteo, sensores y cálculo)
-  datos/Ciudades.kt   Configuración y tarifas de San Luis Río Colorado y Ciudad de México
-  datos/Osm.kt        Overpass, Nominatim, snapshots locales y rutas locales (rutas_locales_slrc.json)
-  datos/Ruteo.kt      Rutas a pie giro por giro con OSRM (routing.openstreetmap.de)
-  datos/Transporte.kt Planificador de transporte público (viajes directos y con 1 transbordo + trazo en mapa)
-  datos/Riesgo.kt     Evaluación de riesgo (FGJ CDMX por alcaldía + reportes locales)
-  logica/Interprete.kt Intérprete en lenguaje natural por reglas ("hotel barato cerca del centro…")
-  logica/Motor.kt     Orquestador principal, GPS, brújula (Sensor.TYPE_ROTATION_VECTOR), simulador y alertas
-  logica/Seguridad.kt Marcación rápida al 911, detección de inactividad e historial local CSV
-  ui/MainActivity.kt  Interfaz Material 3 con mapa OpenStreetMap integrado y pestañas Viaje / Seguridad / Reloj
-
 wear/    (reloj Wear OS: interfaz ligera en la muñeca y guía háptica)
-  MainActivity.kt     Pantallas de Inicio, Hoteles, Rutas, Mapa vectorial circular, Navegación con flecha y Alerta
-  RelojApp.kt         Patrones de vibración diferenciados por tipo de giro y alertas
+  MainActivity.kt   Pantallas de Inicio, Hoteles, Rutas, Mapa vectorial circular, Navegación con flecha y Alerta
+  RelojApp.kt       Patrones de vibración diferenciados por tipo de giro y alertas
 ```
 
 ---
 
-## Cómo compilar y ejecutar en emuladores locales
+## Cómo compilar y ejecutar (Reloj en emulador + Celular en Expo)
 
-1. **Compilar y correr pruebas unitarias**:
+Consulta el detalle completo en [`EMULADORES.md`](EMULADORES.md).
+
+1. **Compilar y correr pruebas del reloj (`core` + `wear`) y de la app móvil (`mobile`)**:
    ```bash
    JBR=$(ls -d /var/lib/flatpak/app/com.google.AndroidStudio/x86_64/stable/*/files/extra/jbr | head -1)
    ./gradlew -Dorg.gradle.java.home=$JBR test assembleDebug
+   npm --prefix mobile test
    ```
 
-2. **Levantar ambos emuladores (teléfono + reloj) y enlazarlos por puente TCP**:
-   Consulta los comandos paso a paso en [`EMULADORES.md`](EMULADORES.md):
+2. **Levantar únicamente el emulador del reloj Wear OS en la laptop**:
    ```bash
    E=~/Android/Sdk/emulator/emulator; A=~/Android/Sdk/platform-tools/adb
-   $E -avd Medium_Phone_API_37.0 -gpu swangle_indirect &
-   $E -avd Wear_OS_XL_Round      -gpu swangle_indirect &
+   $E -avd Wear_OS_XL_Round -gpu swangle_indirect &
 
-   P=emulator-5554; W=emulator-5556
-   $A -s $P install -r -g mobile/build/outputs/apk/debug/mobile-debug.apk
+   W=emulator-5554
    $A -s $W install -r -g wear/build/outputs/apk/debug/wear-debug.apk
-   $A -s $P shell pm grant com.ralenday.sereno android.permission.ACCESS_LOCAL_NETWORK
    $A -s $W shell pm grant com.ralenday.sereno android.permission.ACCESS_LOCAL_NETWORK
-   $A -s $P forward tcp:19886 tcp:19886
    $A -s $W forward tcp:19887 tcp:19887
-
-   $A -s $P shell am start -n com.ralenday.sereno/com.ralenday.sereno.mobile.ui.MainActivity
    $A -s $W shell am start -n com.ralenday.sereno/com.ralenday.sereno.wear.MainActivity
+   ```
+
+3. **Iniciar el puente local y abrir la app móvil en Expo Go (Android o iOS)**:
+   ```bash
+   # Terminal 1: puente local entre Expo (HTTP 19888) y el emulador del reloj (TCP 19886/19887)
+   cd mobile && npm run puente
+
+   # Terminal 2: servidor de Expo (escanear el QR con Expo Go en Android o iOS)
+   cd mobile && npm start
    ```
 
 ---

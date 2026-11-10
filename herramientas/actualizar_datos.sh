@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Regenera las copias de OpenStreetMap que trae la app en mobile/src/main/assets/.
-# Usa las MISMAS cajas y filtros que Osm.consultaLineas() / Osm.consultaHoteles(); si cambias uno,
+# Regenera las copias de OpenStreetMap que trae la app en mobile/assets/datos/.
+# Usa las MISMAS cajas y filtros que Osm.ts; si cambias uno,
 # cambia el otro. Overpass a veces responde 502/504: el script prueba 3 servidores.
 # Uso: herramientas/actualizar_datos.sh   (desde la raíz del proyecto)
 set -euo pipefail
-cd "$(dirname "$0")/../mobile/src/main/assets"
+cd "$(dirname "$0")/../mobile/assets/datos"
 
 SERVIDORES=(https://overpass-api.de/api/interpreter https://overpass.private.coffee/api/interpreter https://overpass.kumi.systems/api/interpreter)
 AGENTE="Sereno/0.1 (proyecto escolar)"

@@ -13,4 +13,4 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "Sereno"
-include(":core", ":mobile", ":wear")
+include(":core", ":wear")

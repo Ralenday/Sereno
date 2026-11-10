@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "Sereno",
+    "slug": "sereno",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.ralenday.sereno",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Sereno usa tu ubicación para buscar alojamiento cercano y guiarte paso a paso en el reloj."
+      }
+    },
+    "android": {
+      "package": "com.ralenday.sereno",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Sereno usa tu ubicación para buscar alojamiento cercano y guiarte paso a paso en el reloj."
+        }
+      ]
+    ]
+  }
+}

@@ -8,3 +8,8 @@ local.properties
 captures/
 CLAUDE.md
 herramientas/rutas_slrc/
+node_modules/
+mobile/node_modules/
+mobile/.expo/
+mobile/dist/
+mobile/web-build/
