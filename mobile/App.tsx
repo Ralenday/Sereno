@@ -14,6 +14,7 @@ import {
   Switch,
   Text,
   TextInput,
+  Vibration,
   View,
 } from 'react-native';
 import Svg, { Circle, Line, Path, Polygon } from 'react-native-svg';
@@ -24,6 +25,22 @@ import { NOMBRE_TIPO } from './src/datos/Osm.ts';
 import { ANIO_DATOS } from './src/datos/Riesgo.ts';
 import { PUERTO_PUENTE_HTTP, PUERTO_RELOJ_TCP, PUERTO_TELEFONO_TCP } from './src/logica/EnlaceExpo.ts';
 import { type EstadoApp, Motor } from './src/logica/Motor.ts';
+
+const TITULOS_ALERTA: Record<string, string> = {
+  RIESGO: '⚠️ Aviso de zona',
+  BAJADA: '🚏 Tu parada',
+  QUIETO: '¿Estás bien?',
+  DESVIO: '↩︎ Fuera de ruta',
+  INFO: 'Sereno',
+};
+
+// Android: [espera, vibra, pausa, vibra…] en ms. iOS: solo cuentan las pausas entre pulsos fijos.
+const PATRONES_VIBRACION: Record<string, number[]> = {
+  RIESGO: [0, 500, 250, 500, 250, 500],
+  BAJADA: [0, 250, 150, 250, 400, 600],
+  QUIETO: [0, 400, 300, 400],
+  DESVIO: [0, 200, 150, 200],
+};
 
 // Paleta suave y descansada para la vista (tonos pizarra, salvia y azul sereno sobre fondo claro cálido)
 const FONDO = '#F2F5F8';
@@ -173,6 +190,16 @@ export default function App() {
 
   const alerta = estado.alerta;
 
+  // Vibración del celular en avisos importantes (en iOS cada pulso dura ~0.4 s; los números son pausas)
+  const ultimaAlertaVibrada = useRef<number | null>(null);
+  useEffect(() => {
+    if (!alerta || ultimaAlertaVibrada.current === alerta.id) return;
+    ultimaAlertaVibrada.current = alerta.id;
+    if (!motor.seguridad.vibrarAlertas) return;
+    const patron = PATRONES_VIBRACION[alerta.tipo];
+    if (patron) Vibration.vibrate(patron);
+  }, [alerta, motor]);
+
   return (
     <SafeAreaView style={estilos.contenedor}>
       <StatusBar style="dark" />
@@ -217,7 +244,7 @@ export default function App() {
         <View style={estilos.modalFondo}>
           <View style={estilos.modalCaja}>
             <Text style={estilos.modalTitulo}>
-              {alerta?.tipo === 'RIESGO' ? 'Aviso de zona' : 'Sereno'}
+              {alerta ? (TITULOS_ALERTA[alerta.tipo] ?? 'Sereno') : ''}
             </Text>
             <Text style={estilos.modalTexto}>{alerta?.texto}</Text>
             <View style={estilos.modalBotones}>
@@ -248,7 +275,6 @@ function PantallaViaje({
   motor: Motor;
   alUsarGps: (buscarAlObtener?: boolean) => Promise<void>;
 }) {
-  const [texto, setTexto] = useState('Necesito hotel barato cerca del centro y transporte público');
   const rutaVisible =
     e.rutaActiva !== null ? e.rutas[e.rutaActiva] : e.rutas[e.rutaSeleccionada];
 
@@ -293,7 +319,7 @@ function PantallaViaje({
                 texto={c.nombre}
                 onPress={() => {
                   motor.usarFuente(c.id);
-                  void motor.buscar(texto);
+                  void motor.buscar('hotel cerca');
                 }}
               />
             ))}
@@ -310,55 +336,22 @@ function PantallaViaje({
         )}
       </View>
 
-      {/* Buscador */}
-      <View style={estilos.tarjeta}>
-        <TextInput
-          value={texto}
-          onChangeText={setTexto}
-          placeholder="¿Qué necesitas? Ej.: hotel barato cerca"
-          placeholderTextColor="#8B98A9"
-          multiline
-          style={estilos.campoTexto}
-        />
-
-        <View style={[estilos.filaBotones, { marginTop: 8, flexWrap: 'wrap' }]}>
-          <Pressable
-            style={[estilos.botonPrimario, e.buscando && { opacity: 0.6 }]}
-            disabled={e.buscando}
-            onPress={() => void motor.buscar(texto)}
-          >
-            <Text style={estilos.textoBotonPrimario}>Buscar alojamiento</Text>
-          </Pressable>
-          <Pressable
-            style={estilos.botonSecundario}
-            disabled={e.buscando}
-            onPress={() => void alUsarGps(true)}
-          >
-            <Text style={estilos.textoBotonSecundario}>📍 Hoteles cerca de mi GPS</Text>
-          </Pressable>
-        </View>
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6 }}>
-          <View style={estilos.filaChips}>
-            {[
-              'Hotel cerca de aquí',
-              'Hostal barato',
-              'Hotel mejor valorado cerca',
-              'Motel menos de 800',
-            ].map((s) => (
-              <Pressable
-                key={s}
-                style={estilos.botonSugerencia}
-                onPress={() => {
-                  setTexto(s);
-                  void motor.buscar(s);
-                }}
-              >
-                <Text style={estilos.textoSugerencia}>{s}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </ScrollView>
+      {/* Búsqueda directa: el filtrado se hace con los botones Cerca / $ / ★ de la lista */}
+      <View style={[estilos.filaBotones, { flexWrap: 'wrap' }]}>
+        <Pressable
+          style={[estilos.botonPrimario, e.buscando && { opacity: 0.6 }]}
+          disabled={e.buscando}
+          onPress={() => void motor.buscar('hotel cerca')}
+        >
+          <Text style={estilos.textoBotonPrimario}>🔍 Buscar hospedaje aquí</Text>
+        </Pressable>
+        <Pressable
+          style={estilos.botonSecundario}
+          disabled={e.buscando}
+          onPress={() => void alUsarGps(true)}
+        >
+          <Text style={estilos.textoBotonSecundario}>📍 Cerca de mi GPS</Text>
+        </Pressable>
       </View>
 
       {(e.buscando || e.calculandoRutas) && (
@@ -877,6 +870,7 @@ function PantallaPreferencias({ e, motor }: { e: EstadoApp; motor: Motor }) {
   const [quieto, setQuieto] = useState(s.detectarQuieto);
   const [minutos, setMinutos] = useState(s.minutosQuieto);
   const [riesgo, setRiesgo] = useState(s.avisosRiesgo);
+  const [vibrar, setVibrar] = useState(s.vibrarAlertas);
   const [historial, setHistorial] = useState(s.puntosHistorial());
 
   return (
@@ -933,6 +927,26 @@ function PantallaPreferencias({ e, motor }: { e: EstadoApp; motor: Motor }) {
             }}
           />
         </View>
+
+        <View style={[estilos.filaEncabezado, { marginTop: 14 }]}>
+          <Text style={[estilos.textoPrincipal, { flex: 1, fontWeight: '600' }]}>
+            Vibrar el celular en avisos
+          </Text>
+          <Switch
+            value={vibrar}
+            trackColor={{ false: '#CBD5E1', true: '#94D2C5' }}
+            thumbColor={vibrar ? SALVIA : '#F8FAFC'}
+            onValueChange={(v) => {
+              setVibrar(v);
+              s.vibrarAlertas = v;
+              if (v) Vibration.vibrate(PATRONES_VIBRACION.BAJADA);
+            }}
+          />
+        </View>
+        <Text style={estilos.textoSecundario}>
+          Patrones distintos: zona de robos (3 largas), tu parada para bajar (2 cortas + 1 larga),
+          inactividad y desvío. También vibra el reloj.
+        </Text>
       </View>
 
       <Pressable style={estilos.botonSecundario} onPress={() => motor.reportarZona()}>

@@ -88,7 +88,7 @@ data class NavActual(
     val simulando: Boolean = false,
 )
 
-enum class TipoAlerta { RIESGO, QUIETO, DESVIO, INFO }
+enum class TipoAlerta { RIESGO, QUIETO, DESVIO, INFO, BAJADA }
 
 data class Alerta(val id: Long, val tipo: TipoAlerta, val texto: String, val pideRespuesta: Boolean = false)
 
@@ -244,7 +244,9 @@ private fun JSONObject.aNav() = NavActual(
 )
 
 private fun Alerta.aJson() = JSONObject().put("id", id).put("tipo", tipo.name).put("texto", texto).put("resp", pideRespuesta)
-private fun JSONObject.aAlerta() = Alerta(getLong("id"), TipoAlerta.valueOf(getString("tipo")), getString("texto"), optBoolean("resp"))
+private fun JSONObject.aAlerta() = Alerta(
+    getLong("id"),
+    runCatching { TipoAlerta.valueOf(getString("tipo")) }.getOrDefault(TipoAlerta.INFO), getString("texto"), optBoolean("resp"))
 
 fun PasoNav.aJson(): JSONObject = JSONObject().put("giro", giro.name).put("calle", calle).put("p", punto.aJson()).put("d", distanciaM)
 fun JSONObject.aPaso() = PasoNav(Giro.valueOf(getString("giro")), getString("calle"), getJSONObject("p").aPunto(), getInt("d"))

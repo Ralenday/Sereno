@@ -528,9 +528,12 @@ export class Motor {
         return;
       }
       if (t.modo !== 'CAMINAR' && t.modo !== 'TAXI') {
-        if (d < 700 && this.avisoBajarse === 0) {
+        if (d < 250 && this.avisoBajarse < 2) {
+          this.avisoBajarse = 2;
+          this.actualizar({ alerta: this.crearAlerta('BAJADA', `¡Bájate en la próxima parada: ${t.hasta}!`) });
+        } else if (d < 700 && this.avisoBajarse === 0) {
           this.avisoBajarse = 1;
-          this.actualizar({ alerta: this.crearAlerta('INFO', `Prepárate: bajas en ${t.hasta}`) });
+          this.actualizar({ alerta: this.crearAlerta('BAJADA', `Prepárate: bajas en ${t.hasta} (~${Math.round(d / 10) * 10} m)`) });
         }
       }
     }

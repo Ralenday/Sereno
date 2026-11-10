@@ -108,7 +108,7 @@ export interface NavActual {
   simulando?: boolean;
 }
 
-export type TipoAlerta = 'RIESGO' | 'QUIETO' | 'DESVIO' | 'INFO';
+export type TipoAlerta = 'RIESGO' | 'QUIETO' | 'DESVIO' | 'INFO' | 'BAJADA';
 
 export interface Alerta {
   id: number;

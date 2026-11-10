@@ -4,6 +4,8 @@ export class Seguridad {
   minutosQuieto = 10;
   detectarQuieto = true;
   avisosRiesgo = true;
+  /** Vibrar el celular en avisos de zona, bajada, inactividad y desvío. */
+  vibrarAlertas = true;
 
   private historial: Array<{ t: number; lat: number; lon: number }> = [];
   private ultimoHistorial = 0;

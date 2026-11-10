@@ -23,6 +23,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -46,6 +48,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -77,6 +81,9 @@ import kotlinx.coroutines.launch
 import kotlin.math.cos
 import kotlin.math.roundToInt
 import kotlin.math.sin
+
+/** Niveles de tamaño de letra del reloj: multiplicador y nombre. */
+val ESCALAS_LETRA = listOf(1.0f to "Normal", 1.15f to "Grande", 1.3f to "Muy grande")
 
 // Paleta suave pero con alto contraste en botones para lectura clara en el reloj
 val FondoPizarra = Color(0xFF12181F)
@@ -142,6 +149,13 @@ fun AppReloj() {
     val nav = rememberSwipeDismissableNavController()
     val e = estado ?: EstadoReloj()
     var ajusteManual by remember { mutableFloatStateOf(0f) }
+    val prefs = remember { context.getSharedPreferences("sereno_reloj", android.content.Context.MODE_PRIVATE) }
+    var nivelLetra by remember { mutableIntStateOf(prefs.getInt("letra", 0).coerceIn(0, ESCALAS_LETRA.lastIndex)) }
+    val cambiarLetra: () -> Unit = {
+        nivelLetra = (nivelLetra + 1) % ESCALAS_LETRA.size
+        prefs.edit().putInt("letra", nivelLetra).apply()
+    }
+    val densidad = LocalDensity.current
     val girarBrujula: (Float) -> Unit = { delta ->
         ajusteManual = if (delta == 0f) 0f else ((ajusteManual + delta) % 360f + 360f) % 360f
     }
@@ -153,7 +167,12 @@ fun AppReloj() {
     LaunchedEffect(e.alerta?.id) {
         val a = e.alerta ?: return@LaunchedEffect
         if (a.id != alertaVista) {
-            if (a.tipo == TipoAlerta.INFO) vib.toque() else vib.alerta()
+            when (a.tipo) {
+                TipoAlerta.INFO -> vib.toque()
+                TipoAlerta.BAJADA -> vib.bajada()
+                TipoAlerta.RIESGO -> vib.alerta()
+                else -> vib.aviso()
+            }
         }
     }
     LaunchedEffect(e.nav != null) {
@@ -163,9 +182,12 @@ fun AppReloj() {
     }
 
     MaterialTheme {
+      CompositionLocalProvider(
+        LocalDensity provides Density(densidad.density, densidad.fontScale * ESCALAS_LETRA[nivelLetra].first),
+      ) {
         AppScaffold(modifier = Modifier.background(FondoPizarra)) {
             val a = e.alerta
-            if (a != null && a.id != alertaVista && (a.pideRespuesta || a.tipo == TipoAlerta.RIESGO)) {
+            if (a != null && a.id != alertaVista && (a.pideRespuesta || a.tipo == TipoAlerta.RIESGO || a.tipo == TipoAlerta.BAJADA)) {
                 PantallaAlerta(
                     texto = a.texto,
                     pide = a.pideRespuesta,
@@ -180,7 +202,10 @@ fun AppReloj() {
             SwipeDismissableNavHost(navController = nav, startDestination = "inicio") {
                 val actual = { estadoState.value?.conRumbo(rumboVivoState.value) ?: EstadoReloj() }
                 composable("inicio") {
-                    PantallaInicio(actual(), conectadoState.value, ajusteManual, enviar, nav::navigate)
+                    PantallaInicio(
+                        actual(), conectadoState.value, ajusteManual, enviar, nav::navigate,
+                        textoLetra = ESCALAS_LETRA[nivelLetra].second, cambiarLetra = cambiarLetra,
+                    )
                 }
                 composable("hoteles") {
                     PantallaHoteles(actual(), enviar) { nav.navigate("rutas") }
@@ -214,6 +239,7 @@ fun AppReloj() {
                 composable("ayuda") { PantallaAyuda() }
             }
         }
+      }
     }
 }
 
@@ -242,6 +268,8 @@ fun PantallaInicio(
     ajusteManual: Float,
     enviar: (Comando) -> Unit,
     ir: (String) -> Unit,
+    textoLetra: String = "Normal",
+    cambiarLetra: () -> Unit = {},
 ) {
     val lista = rememberTransformingLazyColumnState()
     val gradosFlecha = calcularGradosFlecha(e, ajusteManual)
@@ -305,6 +333,13 @@ fun PantallaInicio(
                         sub = if (e.mapa?.destinoNombre?.isNotBlank() == true) e.mapa!!.destinoNombre else "Ver mapa y flecha en vivo",
                     ) { ir("mapa") }
                 }
+            }
+            item {
+                BotonPastilla(
+                    texto = "Aa Letra: $textoLetra",
+                    colorTexto = AzulSereno,
+                    onClick = cambiarLetra,
+                )
             }
             item {
                 BotonPastilla(
@@ -893,7 +928,11 @@ fun PantallaAlerta(texto: String, pide: Boolean, tipo: TipoAlerta, ok: () -> Uni
             item {
                 ListHeader {
                     Text(
-                        if (tipo == TipoAlerta.RIESGO) "Aviso de zona" else "Sereno",
+                        when (tipo) {
+                            TipoAlerta.RIESGO -> "⚠ Aviso de zona"
+                            TipoAlerta.BAJADA -> "🚏 Tu parada"
+                            else -> "Sereno"
+                        },
                         color = if (tipo == TipoAlerta.RIESGO) ArenaSuave else Salvia,
                         fontWeight = FontWeight.Bold,
                     )
@@ -923,6 +962,8 @@ fun PantallaAyuda() {
                 "Sigue recto: 1 toque suave",
                 "Vuelta en U: 1 largo + 2 cortos",
                 "Llegada: 1 vibración larga",
+                "Tu parada: 2 cortas + 1 larga",
+                "Zona de robos: 3 largas",
                 "Brújula: usa el giro de tu celular",
                 "Croquis: toca para acercar/alejar",
                 "Modo discreto: doble toque para salir",

@@ -23,7 +23,7 @@ class RelojApp : Application() {
  * Lenguaje de vibraciones para navegar sin mirar (documentado en la pantalla de ayuda):
  * - Izquierda: 2 toques cortos · Derecha: 3 toques cortos
  * - Sigue recto / ligera: 1 toque · Vuelta en U: 1 largo + 2 cortos
- * - Llegada: 1 vibración larga · Alerta: 3 largas
+ * - Llegada: 1 vibración larga · Zona de riesgo: 3 largas · Tu parada: 2 cortas + 1 larga
  */
 class Vibracion(context: Context) {
     private val vibrador = context.getSystemService(Vibrator::class.java)
@@ -36,7 +36,12 @@ class Vibracion(context: Context) {
         Giro.VUELTA_U -> patron(0, 400, 150, 90, 120, 90)
         Giro.LLEGADA -> patron(0, 700)
     }
+    /** Zona de robos / riesgo: 3 largas. */
     fun alerta() = patron(0, 450, 200, 450, 200, 450)
+    /** Prepárate para bajar del transporte: 2 cortas + 1 larga. */
+    fun bajada() = patron(0, 120, 120, 120, 300, 600)
+    /** Desvío o inactividad: 2 medias. */
+    fun aviso() = patron(0, 250, 180, 250)
 
     private fun patron(vararg t: Long) {
         if (vibrador?.hasVibrator() == true) vibrador.vibrate(VibrationEffect.createWaveform(t, -1))
