@@ -3,6 +3,7 @@ package com.ralenday.sereno.core
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.json.JSONObject
 
 class CoreTest {
     private val zocalo = Punto(19.4326, -99.1332)
@@ -44,5 +45,25 @@ class CoreTest {
         assertEquals(e, EstadoReloj.deBytes(e.aBytes()))
         val c = Comando(TipoComando.ELEGIR_HOTEL, "node/1")
         assertEquals(c, Comando.deBytes(c.aBytes()))
+    }
+
+    @Test fun rumboVivoRecalculaFlecha() {
+        val nav = NavActual(
+            destino = "Hotel", giro = Giro.DER, calle = "Madero", metrosAlGiro = 50, flechaGrados = 0,
+            metrosRestantes = 300, minutosRestantes = 4, rumboObjetivo = 90,
+        )
+        val e = EstadoReloj(nav = nav, mapa = MapaReloj(yo = zocalo, destino = bellasArtes, rumbo = 0))
+        val vivo = e.conRumbo(350)
+        assertEquals(350, vivo.mapa?.rumbo)
+        assertEquals(100, vivo.nav?.flechaGrados)
+        assertTrue(e.conRumbo(null) === e)
+    }
+
+    @Test fun hotelConCalificacionIdaYVuelta() {
+        val h = Hotel("node/1", "Hotel", "hotel", zocalo, 100, 1250, 4, calificacion = 4.3)
+        val de = JSONObject(h.aJson().toString()).aHotel()
+        assertEquals(4.3, de.calificacion, 1e-9)
+        val viejo = JSONObject(h.aJson().apply { remove("calif") }.toString()).aHotel()
+        assertEquals(0.0, viejo.calificacion, 1e-9)
     }
 }

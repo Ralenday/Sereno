@@ -4,6 +4,7 @@ import { type Comando, type EstadoReloj, estadoRelojAJson } from '../core/Modelo
 export const PUERTO_PUENTE_HTTP = 19888;
 export const PUERTO_TELEFONO_TCP = 19886;
 export const PUERTO_RELOJ_TCP = 19887;
+const INTERVALO_RUMBO_MS = 80;
 
 function detectarHostPorDefecto(): string {
   try {
@@ -25,6 +26,11 @@ export class EnlaceExpo {
   private oyentesEstado = new Set<() => void>();
   private oyentesComandos = new Set<(c: Comando) => void>();
   private timerPoll: ReturnType<typeof setInterval> | null = null;
+  // Brújula: una sola petición en vuelo; si llegan lecturas mientras tanto, solo se manda la última
+  private rumboPendiente: number | null = null;
+  private rumboEnVuelo = false;
+  private ultimoEnvioRumbo = 0;
+  private timerRumbo: ReturnType<typeof setTimeout> | null = null;
 
   get conectado(): boolean {
     return this._conectado;
@@ -77,6 +83,45 @@ export class EnlaceExpo {
   enComando(cb: (c: Comando) => void): () => void {
     this.oyentesComandos.add(cb);
     return () => this.oyentesComandos.delete(cb);
+  }
+
+  /**
+   * Envía solo el rumbo de la brújula al reloj (unos bytes). Limita a ~12 envíos/s y descarta las
+   * lecturas intermedias para que nunca se acumule una cola de peticiones atrasadas.
+   */
+  publicarRumbo(grados: number): void {
+    this.rumboPendiente = grados;
+    this.bombearRumbo();
+  }
+
+  private bombearRumbo(): void {
+    if (this.rumboEnVuelo || this.timerRumbo || this.rumboPendiente === null) return;
+    const espera = INTERVALO_RUMBO_MS - (Date.now() - this.ultimoEnvioRumbo);
+    if (espera > 0) {
+      this.timerRumbo = setTimeout(() => {
+        this.timerRumbo = null;
+        this.bombearRumbo();
+      }, espera);
+      return;
+    }
+    const valor = this.rumboPendiente;
+    this.rumboPendiente = null;
+    this.rumboEnVuelo = true;
+    this.ultimoEnvioRumbo = Date.now();
+    const control = new AbortController();
+    const corte = setTimeout(() => control.abort(), 1500);
+    fetch(`${this.urlPuente}/rumbo`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: String(valor),
+      signal: control.signal,
+    })
+      .catch(() => {})
+      .finally(() => {
+        clearTimeout(corte);
+        this.rumboEnVuelo = false;
+        this.bombearRumbo();
+      });
   }
 
   async publicar(estado: EstadoReloj): Promise<void> {

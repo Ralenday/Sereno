@@ -150,3 +150,31 @@ test('Snapshots OSM y rutas locales de combi en SLRC y CDMX', () => {
   assert.equal(jsonReloj.v, 1);
   assert.equal(jsonReloj.ciudad, 'San Luis Río Colorado');
 });
+
+test('Precios: hoteles con precios y calificaciones variadas, estables y coherentes', () => {
+  const cdmx = Ciudades.porId('cdmx')!;
+  const osm = new Osm();
+  const json = {
+    elements: [
+      { type: 'node', id: 1, lat: 19.4270, lon: -99.1680, tags: { tourism: 'hotel', name: 'Four Seasons Hotel Mexico City' } },
+      { type: 'node', id: 2, lat: 19.4330, lon: -99.1350, tags: { tourism: 'hotel', name: 'City Express Centro' } },
+      { type: 'node', id: 3, lat: 19.4330, lon: -99.1360, tags: { tourism: 'hostel', name: 'Hostel Mundo Joven Catedral' } },
+      { type: 'node', id: 4, lat: 19.4300, lon: -99.1400, tags: { tourism: 'hotel', name: 'Hotel Uno' } },
+      { type: 'node', id: 5, lat: 19.4310, lon: -99.1410, tags: { tourism: 'hotel', name: 'Hotel Dos' } },
+      { type: 'node', id: 6, lat: 19.4320, lon: -99.1420, tags: { tourism: 'hotel', name: 'Hotel Tres', stars: '4' } },
+    ],
+  };
+  const hs = osm.parsearHoteles(json, cdmx, cdmx.centro);
+  const por = (n: number) => hs.find((h) => h.id === `node/${n}`)!;
+  assert.ok(por(1).precioEstimado > por(2).precioEstimado * 2, 'lujo mucho más caro que económico');
+  assert.ok(por(3).precioEstimado < por(2).precioEstimado, 'hostal más barato');
+  assert.equal(por(1).estrellas, 5);
+  assert.equal(por(6).estrellas, 4);
+  for (const h of hs) {
+    assert.ok(h.calificacion >= 2.4 && h.calificacion <= 4.9);
+    assert.ok(h.estrellas >= 1 && h.estrellas <= 5);
+  }
+  assert.ok(new Set(hs.map((h) => h.precioEstimado)).size >= 5, 'precios distintos');
+  // Determinista: misma entrada => mismos valores
+  assert.deepEqual(osm.parsearHoteles(json, cdmx, cdmx.centro), hs);
+});

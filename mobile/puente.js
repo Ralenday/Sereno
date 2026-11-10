@@ -20,6 +20,7 @@ const PUERTO_RELOJ_TCP = 19887;
 const PUERTO_EXPO_HTTP = 19888;
 const TIPO_ESTADO = 1;
 const TIPO_COMANDO = 2;
+const TIPO_RUMBO = 3;
 
 let ultimoEstadoBytes = Buffer.alloc(0);
 let colaComandos = [];
@@ -69,6 +70,55 @@ function empujarAlReloj(bytes) {
       resolve(false);
     });
   });
+}
+
+// Canal de brújula: conexión TCP persistente hacia el reloj, un mensaje de pocos bytes por lectura.
+let socketRumbo = null;
+let socketRumboListo = false;
+let rumboPendiente = null;
+
+function marcoRumbo(grados) {
+  const datos = Buffer.from(String(grados), 'utf8');
+  const cabecera = Buffer.alloc(5);
+  cabecera.writeUInt8(TIPO_RUMBO, 0);
+  cabecera.writeInt32BE(datos.length, 1);
+  return Buffer.concat([cabecera, datos]);
+}
+
+function enviarRumbo(grados) {
+  rumboPendiente = grados;
+  if (socketRumbo && socketRumboListo) {
+    socketRumbo.write(marcoRumbo(rumboPendiente));
+    rumboPendiente = null;
+    return;
+  }
+  if (socketRumbo) return; // conectando: se manda el último valor al conectar
+  const s = new net.Socket();
+  socketRumbo = s;
+  socketRumboListo = false;
+  s.setNoDelay(true);
+  s.setKeepAlive(true, 10000);
+  s.connect(PUERTO_RELOJ_TCP, '127.0.0.1', () => {
+    socketRumboListo = true;
+    ultimoContactoReloj = Date.now();
+    if (rumboPendiente !== null) {
+      s.write(marcoRumbo(rumboPendiente));
+      rumboPendiente = null;
+    }
+  });
+  const cerrar = () => {
+    if (socketRumbo === s) {
+      socketRumbo = null;
+      socketRumboListo = false;
+    }
+    s.destroy();
+  };
+  s.on('data', () => {});
+  s.on('error', () => {
+    configurarAdbForward();
+    cerrar();
+  });
+  s.on('close', cerrar);
 }
 
 function pingReloj() {
@@ -156,6 +206,19 @@ const servidorHttp = http.createServer(async (req, res) => {
     colaComandos = [];
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ ok: true, relojConectado: conectado, comandos }));
+    return;
+  }
+
+  if (req.method === 'POST' && req.url === '/rumbo') {
+    const trozos = [];
+    req.on('data', (c) => trozos.push(c));
+    req.on('end', () => {
+      const grados = Math.round(Number(Buffer.concat(trozos).toString('utf8').trim()));
+      if (Number.isFinite(grados)) enviarRumbo(((grados % 360) + 360) % 360);
+      // Respuesta inmediata: el celular no espera al reloj para la siguiente lectura
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end('{"ok":true}');
+    });
     return;
   }
 

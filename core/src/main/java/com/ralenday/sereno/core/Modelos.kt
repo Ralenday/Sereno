@@ -27,8 +27,10 @@ data class Hotel(
     val punto: Punto,
     val distanciaM: Int,
     val precioEstimado: Int,
-    /** Estrellas de OSM (0 = sin dato). Se usa como "valoración" porque no hay reseñas abiertas. */
+    /** Estrellas (de OSM cuando existen; si no, estimadas por cadena/tipo en el teléfono). */
     val estrellas: Int,
+    /** Calificación estimada 0–5 estilo reseñas (0 = sin dato). */
+    val calificacion: Double = 0.0,
     val telefono: String? = null,
     val web: String? = null,
     val direccion: String? = null,
@@ -184,6 +186,7 @@ private fun JSONObject.punto(clave: String) = optJSONObject(clave)?.aPunto()
 fun Hotel.aJson(): JSONObject = JSONObject().apply {
     put("id", id); put("nombre", nombre); put("tipo", tipo); put("p", punto.aJson())
     put("dist", distanciaM); put("precio", precioEstimado); put("estrellas", estrellas)
+    put("calif", calificacion)
     put("tel", telefono ?: JSONObject.NULL); put("web", web ?: JSONObject.NULL)
     put("dir", direccion ?: JSONObject.NULL)
 }
@@ -192,6 +195,7 @@ fun JSONObject.aHotel() = Hotel(
     id = getString("id"), nombre = getString("nombre"), tipo = getString("tipo"),
     punto = getJSONObject("p").aPunto(), distanciaM = getInt("dist"),
     precioEstimado = getInt("precio"), estrellas = optInt("estrellas"),
+    calificacion = optDouble("calif", 0.0).takeIf { !it.isNaN() } ?: 0.0,
     telefono = texto("tel"), web = texto("web"), direccion = texto("dir"),
 )
 
@@ -259,3 +263,19 @@ private fun JSONObject.aMapa() = MapaReloj(
     trazos = optJSONArray("tr")?.objetos()?.map { TrazoMapa(Modo.valueOf(it.getString("m")), Geo.decodificarPolilinea(it.getString("p"))) } ?: emptyList(),
     rumbo = optInt("rumbo", 0),
 )
+
+/**
+ * Devuelve el estado con la brújula en vivo aplicada: actualiza `mapa.rumbo` y recalcula la flecha de
+ * navegación con `rumboObjetivo`, sin esperar a que el teléfono mande el estado completo.
+ */
+fun EstadoReloj.conRumbo(rumbo: Int?): EstadoReloj {
+    if (rumbo == null) return this
+    val r = ((rumbo % 360) + 360) % 360
+    val nuevoMapa = mapa?.copy(rumbo = r)
+    val nuevaNav = nav?.let { n ->
+        if (n.giro == Giro.LLEGADA) n
+        else n.copy(flechaGrados = Geo.diferenciaAngulo(n.rumboObjetivo.toDouble(), r.toDouble()))
+    }
+    if (nuevoMapa == mapa && nuevaNav == nav) return this
+    return copy(mapa = nuevoMapa, nav = nuevaNav)
+}

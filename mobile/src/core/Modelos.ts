@@ -58,6 +58,8 @@ export interface Hotel {
   distanciaM: number;
   precioEstimado: number;
   estrellas: number;
+  /** Calificación estimada 0–5 (estilo reseñas). */
+  calificacion: number;
   telefono?: string | null;
   web?: string | null;
   direccion?: string | null;
@@ -175,6 +177,7 @@ export function estadoRelojAJson(e: EstadoReloj): Record<string, unknown> {
       dist: Math.round(h.distanciaM),
       precio: Math.round(h.precioEstimado),
       estrellas: Math.round(h.estrellas),
+      calif: Math.round((h.calificacion ?? 0) * 10) / 10,
       tel: h.telefono ?? null,
       web: h.web ?? null,
       dir: h.direccion ?? null,

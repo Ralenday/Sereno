@@ -120,7 +120,7 @@ export default function App() {
     let ultimoHeadingNativo = 0;
 
     try {
-      Magnetometer.setUpdateInterval(180);
+      Magnetometer.setUpdateInterval(100);
       subMag = Magnetometer.addListener((data) => {
         if (Date.now() - ultimoHeadingNativo < 1500) return;
         const { x, y } = data;
@@ -798,6 +798,7 @@ function TarjetaHotel({
       <Text style={estilos.textoPrincipal}>
         {NOMBRE_TIPO[h.tipo] ?? h.tipo} · ≈ ${h.precioEstimado}/noche
         {h.estrellas > 0 ? ` · ${'★'.repeat(h.estrellas)}` : ''}
+        {h.calificacion > 0 ? ` · ${h.calificacion.toFixed(1)}/5` : ''}
       </Text>
       {detalles !== '' && <Text style={estilos.textoNota}>{detalles}</Text>}
     </Pressable>

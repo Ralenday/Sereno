@@ -1,5 +1,6 @@
 import { Geo } from '../core/Geo.ts';
 import type { Modo, Punto } from '../core/Modelos.ts';
+import type { ZonaPrecio } from './Precios.ts';
 
 export type FuenteRiesgo = 'CDMX_FGJ' | 'SOLO_LOCAL';
 
@@ -16,6 +17,8 @@ export interface Ciudad {
   taxiPorKm: number;
   taxiPorZona?: boolean;
   preciosNoche: Record<string, number>;
+  /** Zonas donde el hospedaje es más caro (o barato) que el promedio de la ciudad. */
+  zonasPrecio?: ZonaPrecio[];
   fuenteRiesgo: FuenteRiesgo;
   transporteEnOsm: string;
 }
@@ -39,6 +42,10 @@ const SLRC: Ciudad = {
     hostel: 450,
     apartment: 900,
   },
+  zonasPrecio: [
+    { nombre: 'Av. Obregón / centro', centro: { lat: 32.4840, lon: -114.7790 }, radioM: 900, factor: 1.12 },
+    { nombre: 'Garita / frontera', centro: { lat: 32.4930, lon: -114.7900 }, radioM: 900, factor: 1.08 },
+  ],
   fuenteRiesgo: 'SOLO_LOCAL',
   transporteEnOsm:
     'Local: 4 rutas de combi mapeadas en assets/datos/rutas_locales_slrc.json ($14 general / $7 est. y mayores)',
@@ -71,6 +78,16 @@ const CDMX: Ciudad = {
     hostel: 420,
     apartment: 1300,
   },
+  zonasPrecio: [
+    { nombre: 'Polanco', centro: { lat: 19.4330, lon: -99.1960 }, radioM: 1800, factor: 1.55 },
+    { nombre: 'Reforma / Juárez', centro: { lat: 19.4285, lon: -99.1620 }, radioM: 1500, factor: 1.4 },
+    { nombre: 'Condesa / Roma', centro: { lat: 19.4150, lon: -99.1690 }, radioM: 1700, factor: 1.25 },
+    { nombre: 'Santa Fe', centro: { lat: 19.3600, lon: -99.2600 }, radioM: 2500, factor: 1.35 },
+    { nombre: 'Coyoacán', centro: { lat: 19.3500, lon: -99.1620 }, radioM: 1500, factor: 1.1 },
+    { nombre: 'Aeropuerto', centro: { lat: 19.4361, lon: -99.0719 }, radioM: 2200, factor: 1.15 },
+    { nombre: 'Centro Histórico', centro: { lat: 19.4330, lon: -99.1350 }, radioM: 1200, factor: 0.95 },
+    { nombre: 'Tlalpan / Viaducto (moteles)', centro: { lat: 19.3950, lon: -99.1420 }, radioM: 1500, factor: 0.85 },
+  ],
   fuenteRiesgo: 'CDMX_FGJ',
   transporteEnOsm: 'Bueno (Metro, Metrobús, Trolebús, Tren Ligero, Cablebús mapeados)',
 };

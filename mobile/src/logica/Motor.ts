@@ -127,9 +127,11 @@ export class Motor {
     const norm = Math.round(((grados % 360) + 360) % 360) % 360;
     this.rumboBrujula = norm;
     const prev = this._estado.rumboActual;
-    if (prev !== null && Math.abs(Geo.diferenciaAngulo(norm, prev)) < 2) {
+    if (prev !== null && Math.abs(Geo.diferenciaAngulo(norm, prev)) < 1) {
       return;
     }
+    // Canal rápido: solo el número de grados viaja al reloj (no el estado completo)
+    this.enlace.publicarRumbo(norm);
     this._estado = { ...this._estado, rumboActual: norm };
     if (this._estado.nav && this._estado.ubicacion) {
       this.actualizarNav(this._estado.ubicacion, this._estado.hotelElegido?.nombre ?? 'Destino');
@@ -147,7 +149,14 @@ export class Motor {
 
   private programarPublicacion(forzar: boolean): void {
     const r = this.paraReloj(this._estado);
-    const huella = JSON.stringify({ ...r, generado: 0 });
+    // La brújula viaja por su propio canal (publicarRumbo); se ignora aquí para no reenviar todo el
+    // estado (hoteles, rutas, trazos) cada vez que el celular gira un grado.
+    const huella = JSON.stringify({
+      ...r,
+      generado: 0,
+      mapa: r.mapa ? { ...r.mapa, rumbo: 0 } : null,
+      nav: r.nav ? { ...r.nav, flechaGrados: 0 } : null,
+    });
     if (!forzar && huella === this.ultimoJsonReloj) return;
     this.ultimoJsonReloj = huella;
     if (forzar) {
@@ -781,7 +790,10 @@ export class Motor {
     if (o === 'PRECIO') {
       return copia.sort((a, b) => a.precioEstimado - b.precioEstimado || a.distanciaM - b.distanciaM);
     }
-    return copia.sort((a, b) => b.estrellas - a.estrellas || a.distanciaM - b.distanciaM);
+    return copia.sort(
+      (a, b) =>
+        b.calificacion - a.calificacion || b.estrellas - a.estrellas || a.distanciaM - b.distanciaM,
+    );
   }
 
   private crearAlerta(tipo: TipoAlerta, texto: string, pideRespuesta = false): Alerta {

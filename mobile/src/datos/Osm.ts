@@ -1,6 +1,7 @@
 import { Geo } from '../core/Geo.ts';
 import type { Hotel, Modo, Punto } from '../core/Modelos.ts';
 import { type Ciudad, Ciudades } from './Ciudades.ts';
+import { Precios } from './Precios.ts';
 
 import hotelesCdmx from '../../assets/datos/hoteles_cdmx.json' with { type: 'json' };
 import hotelesSlrc from '../../assets/datos/hoteles_slrc.json' with { type: 'json' };
@@ -140,8 +141,6 @@ export class Osm {
       }
       if (!p) continue;
       const tipo = String(tags.tourism ?? 'hotel');
-      const estrellasStr = String(tags.stars ?? '').slice(0, 1);
-      const estrellas = Number.isInteger(parseInt(estrellasStr, 10)) ? parseInt(estrellasStr, 10) : 0;
       const nombre =
         typeof tags.name === 'string' && tags.name.trim() !== ''
           ? tags.name.trim()
@@ -151,14 +150,18 @@ export class Osm {
       const tel = (tags.phone || tags['contact:phone'] || '').trim() || null;
       const web = (tags.website || tags['contact:website'] || '').trim() || null;
 
+      const id = `${e.type}/${e.id}`;
+      const est = Precios.estimar(ciudad, id, tipo, nombre, p, tags);
+
       res.push({
-        id: `${e.type}/${e.id}`,
+        id,
         nombre,
         tipo,
         punto: p,
         distanciaM: Math.round(Geo.distancia(centro, p)),
-        precioEstimado: Ciudades.precioEstimado(ciudad, tipo, estrellas),
-        estrellas,
+        precioEstimado: est.precio,
+        estrellas: est.estrellas,
+        calificacion: est.calificacion,
         telefono: tel,
         web,
         direccion: calle ? `${calle} ${num}`.trim() : null,

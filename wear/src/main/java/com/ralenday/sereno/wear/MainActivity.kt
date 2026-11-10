@@ -1,6 +1,9 @@
 package com.ralenday.sereno.wear
 
 import android.os.Bundle
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Canvas
@@ -32,7 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -69,6 +72,7 @@ import com.ralenday.sereno.core.Orden
 import com.ralenday.sereno.core.Punto
 import com.ralenday.sereno.core.TipoAlerta
 import com.ralenday.sereno.core.TipoComando
+import com.ralenday.sereno.core.conRumbo
 import kotlinx.coroutines.launch
 import kotlin.math.cos
 import kotlin.math.roundToInt
@@ -131,7 +135,9 @@ fun AppReloj() {
     val vib = remember { Vibracion(context) }
     val estadoState = enlace.estado.collectAsState()
     val conectadoState = enlace.conectado.collectAsState()
-    val estado = estadoState.value
+    val rumboVivoState = enlace.rumboVivo.collectAsState()
+    // La brújula en vivo (canal ligero) se aplica encima del último estado completo recibido
+    val estado = estadoState.value?.conRumbo(rumboVivoState.value)
     val scope = rememberCoroutineScope()
     val nav = rememberSwipeDismissableNavController()
     val e = estado ?: EstadoReloj()
@@ -172,7 +178,7 @@ fun AppReloj() {
                 return@AppScaffold
             }
             SwipeDismissableNavHost(navController = nav, startDestination = "inicio") {
-                val actual = { estadoState.value ?: EstadoReloj() }
+                val actual = { estadoState.value?.conRumbo(rumboVivoState.value) ?: EstadoReloj() }
                 composable("inicio") {
                     PantallaInicio(actual(), conectadoState.value, ajusteManual, enviar, nav::navigate)
                 }
@@ -348,7 +354,9 @@ fun PantallaHoteles(e: EstadoReloj, enviar: (Comando) -> Unit, verRutas: () -> U
                 item(key = h.id) {
                     Boton(
                         titulo = h.nombre,
-                        sub = "$${h.precioEstimado} · ${Geo.textoDistancia(h.distanciaM)}" + if (h.estrellas > 0) " · ${h.estrellas}★" else "",
+                        sub = "$${h.precioEstimado} · ${Geo.textoDistancia(h.distanciaM)}" +
+                            (if (h.estrellas > 0) " · ${h.estrellas}★" else "") +
+                            (if (h.calificacion > 0) " · ${"%.1f".format(h.calificacion)}" else ""),
                         destacado = h.id == e.hotelElegido,
                     ) {
                         enviar(Comando(TipoComando.ELEGIR_HOTEL, h.id))
@@ -687,7 +695,7 @@ fun CroquisRutaInteractivo(
         val spanLon = ((maxLon - minLon) * cosLat).coerceAtLeast(spanMin)
         val spanLat = (maxLat - minLat).coerceAtLeast(spanMin)
         val span = maxOf(spanLon, spanLat) * (if (vistaCompleta) 1.55 else 2.1)
-        val rotacionMapa = -rumboMapa
+        val rotacionMapa = -anguloSuave(rumboMapa)
 
         Canvas(Modifier.fillMaxSize()) {
             val w = size.width
@@ -997,7 +1005,8 @@ fun BotonPastilla(
 
 @Composable
 fun Flecha(grados: Int, modifier: Modifier) {
-    Canvas(modifier.rotate(grados.toFloat())) {
+    val suave = anguloSuave(grados.toFloat())
+    Canvas(modifier.graphicsLayer { rotationZ = suave }) {
         val w = size.width
         val h = size.height
         val p = Path().apply {
@@ -1010,6 +1019,21 @@ fun Flecha(grados: Int, modifier: Modifier) {
         drawPath(p, Salvia)
         drawCircle(TextoClaro, radius = w * 0.08f, center = Offset(w / 2, h * 0.66f))
     }
+}
+
+/**
+ * Interpola un ángulo hacia su nuevo valor por el camino más corto (359° -> 1° gira 2°, no 358°),
+ * para que la flecha y el croquis giren de forma continua entre lecturas de la brújula.
+ */
+@Composable
+fun anguloSuave(objetivo: Float): Float {
+    val anim = remember { Animatable(objetivo) }
+    LaunchedEffect(objetivo) {
+        val actual = anim.value
+        val delta = ((((objetivo - actual) % 360f) + 540f) % 360f) - 180f
+        anim.animateTo(actual + delta, tween(durationMillis = 140, easing = LinearEasing))
+    }
+    return anim.value
 }
 
 fun textoGiro(g: Giro) = when (g) {

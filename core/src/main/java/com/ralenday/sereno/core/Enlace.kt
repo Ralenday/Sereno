@@ -27,6 +27,7 @@ import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
+import kotlin.math.roundToInt
 
 /**
  * Comunicación teléfono <-> reloj.
@@ -54,6 +55,13 @@ class Enlace private constructor(private val context: Context) {
     /** Solo reloj: lo último que mandó el teléfono (o lo guardado en disco). */
     private val _estado = MutableStateFlow(leerUltimo())
     val estado: StateFlow<EstadoReloj?> = _estado
+
+    /**
+     * Solo reloj: brújula en vivo del teléfono (0..359°). Llega por un canal ligero aparte (unos bytes,
+     * ~10 veces por segundo) para no reenviar todo el estado con cada grado que gira el celular.
+     */
+    private val _rumboVivo = MutableStateFlow<Int?>(null)
+    val rumboVivo: StateFlow<Int?> = _rumboVivo
 
     /** Solo teléfono: comandos que llegan del reloj. */
     private val _comandos = MutableSharedFlow<Comando>(extraBufferCapacity = 32)
@@ -192,31 +200,51 @@ class Enlace private constructor(private val context: Context) {
         }
     }
 
+    /**
+     * Atiende una conexión del puente. Puede traer varios mensajes seguidos: el canal de brújula deja la
+     * conexión abierta y manda un mensaje corto por cada lectura, así se evita abrir un socket cada vez.
+     */
     private fun atender(cliente: Socket) {
         try {
             cliente.use { s ->
                 s.soTimeout = TIMEOUT_MS
+                s.tcpNoDelay = true
                 val entrada = DataInputStream(s.getInputStream())
                 val salida = DataOutputStream(s.getOutputStream())
-                val tipo = entrada.readByte().toInt()
-                val datos = ByteArray(entrada.readInt()).also { entrada.readFully(it) }
-                val respuesta: ByteArray = when (tipo) {
-                    TIPO_ESTADO -> { recibirEstado(datos); ByteArray(0) }
-                    TIPO_COMANDO -> {
-                        val cmd = Comando.deBytes(datos)
-                        if (cmd.tipo != TipoComando.PEDIR_ESTADO) recibirComando(datos)
-                        ultimoPublicado ?: ByteArray(0)
-                    }
-                    else -> ByteArray(0)
+                while (true) {
+                    val tipo = entrada.read()
+                    if (tipo < 0) break // el otro lado cerró la conexión
+                    val datos = ByteArray(entrada.readInt()).also { entrada.readFully(it) }
+                    val respuesta: ByteArray = when (tipo) {
+                        TIPO_ESTADO -> { recibirEstado(datos); ByteArray(0) }
+                        TIPO_COMANDO -> {
+                            val cmd = Comando.deBytes(datos)
+                            if (cmd.tipo != TipoComando.PEDIR_ESTADO) recibirComando(datos)
+                            ultimoPublicado ?: ByteArray(0)
+                        }
+                        TIPO_RUMBO -> {
+                            recibirRumbo(datos)
+                            // Conexión persistente: tolerar pausas largas cuando el celular está quieto
+                            s.soTimeout = TIMEOUT_RUMBO_MS
+                            null
+                        }
+                        else -> ByteArray(0)
+                    } ?: continue
+                    salida.writeInt(respuesta.size)
+                    salida.write(respuesta)
+                    salida.flush()
+                    _conectado.value = true
                 }
-                salida.writeInt(respuesta.size)
-                salida.write(respuesta)
-                salida.flush()
-                _conectado.value = true
             }
         } catch (e: Exception) {
             Log.d(TAG, "Conexión local terminada: ${e.message}")
         }
+    }
+
+    internal fun recibirRumbo(datos: ByteArray) {
+        val r = String(datos, Charsets.UTF_8).trim().toDoubleOrNull() ?: return
+        _rumboVivo.value = ((r.roundToInt() % 360) + 360) % 360
+        _conectado.value = true
     }
 
     private fun pingLocal(): Boolean = try {
@@ -253,6 +281,8 @@ class Enlace private constructor(private val context: Context) {
         private const val TIMEOUT_MS = 2_500
         private const val TIPO_ESTADO = 1
         private const val TIPO_COMANDO = 2
+        private const val TIPO_RUMBO = 3
+        private const val TIMEOUT_RUMBO_MS = 120_000
 
         @Volatile private var instancia: Enlace? = null
 
